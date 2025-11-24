@@ -3,22 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosmic Flow | Ultimate Theme Edition</title>
+    <title>Cosmic Flow | AI Director Edition</title>
     
     <style>
-        /* ================= 设计系统 (Apple Design System) ================= */
+        /* ================= 设计系统 ================= */
         :root {
-            /* 默认变量 (Cyberpunk) */
             --accent: #00f3ff; 
             --accent-glow: rgba(0, 243, 255, 0.4);
-            
             --glass-bg: rgba(18, 18, 20, 0.75);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-highlight: rgba(255, 255, 255, 0.08);
-            
             --text-primary: rgba(255, 255, 255, 0.98);
             --text-secondary: rgba(255, 255, 255, 0.55);
-            
             --ease-apple: cubic-bezier(0.25, 1, 0.5, 1);
         }
 
@@ -26,13 +21,11 @@
             margin: 0; overflow: hidden; background-color: #000;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
             color: var(--text-primary); user-select: none;
-            -webkit-font-smoothing: antialiased;
             transition: background-color 1s ease;
         }
 
         #canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
 
-        /* ================= 通用 UI 组件 ================= */
         .glass-panel {
             background: var(--glass-bg);
             backdrop-filter: saturate(180%) blur(40px);
@@ -47,154 +40,83 @@
             font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
             color: var(--text-secondary); margin: 20px 0 10px 4px; font-weight: 600;
         }
-        .section-header:first-of-type { margin-top: 0; }
 
-        /* ================= 左侧：音乐库 ================= */
+        /* ================= AI Director Toggle ================= */
+        .ai-panel-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+        }
+        .ai-switch {
+            position: relative; width: 44px; height: 24px; background: rgba(255,255,255,0.2);
+            border-radius: 12px; cursor: pointer; transition: 0.3s;
+        }
+        .ai-switch::after {
+            content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+            background: white; border-radius: 50%; transition: 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .ai-switch.active { background: var(--accent); }
+        .ai-switch.active::after { transform: translateX(20px); }
+        
+        .ai-status {
+            font-size: 10px; font-family: monospace; color: var(--accent);
+            opacity: 0; transition: opacity 0.5s; margin-top: -15px; margin-bottom: 15px; text-align: right;
+        }
+        .ai-status.visible { opacity: 1; animation: pulseText 2s infinite; }
+
+        @keyframes pulseText { 0%{opacity:0.6} 50%{opacity:1} 100%{opacity:0.6} }
+
+        /* ================= Layout ================= */
         #library-panel {
             position: absolute; top: 24px; left: 24px; width: 260px;
-            height: calc(100vh - 140px); z-index: 10;
-            display: flex; flex-direction: column; padding: 24px;
+            height: calc(100vh - 140px); z-index: 10; display: flex; flex-direction: column; padding: 24px;
         }
-
-        .panel-title { font-size: 22px; font-weight: 700; margin-bottom: 5px; letter-spacing: -0.5px; }
-        .btn-upload {
-            font-size: 13px; color: var(--accent); background: rgba(255, 255, 255, 0.08);
-            padding: 10px 16px; border-radius: 20px; cursor: pointer; text-align: center;
-            margin-bottom: 20px; transition: 0.3s; font-weight: 600;
-            border: 1px solid transparent;
-        }
-        .btn-upload:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent-glow); }
-
-        #playlist { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
-        #playlist::-webkit-scrollbar { width: 0; }
-
-        .track-item {
-            padding: 12px 14px; border-radius: 14px; margin-bottom: 6px; cursor: pointer;
-            display: flex; align-items: center; transition: 0.2s;
-        }
-        .track-item:hover { background: var(--glass-highlight); }
-        .track-item.active { background: rgba(255,255,255,0.12); border: 1px solid var(--glass-border); }
-        .track-item.active .t-name { color: var(--accent); font-weight: 600; }
-        
-        .t-icon { margin-right: 12px; font-size: 14px; opacity: 0.7; }
-        .t-info { display: flex; flex-direction: column; overflow: hidden; }
-        .t-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .t-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-
-        /* ================= 右上：番茄钟 ================= */
         #pomo-widget {
             position: absolute; top: 24px; right: 24px; width: 280px;
-            padding: 24px; z-index: 11; display: flex; align-items: center; justify-content: space-between;
+            padding: 24px; z-index: 11; display: flex; align-items: center;
         }
-        
-        .pomo-ring-container { position: relative; width: 70px; height: 70px; }
-        .pomo-svg { transform: rotate(-90deg); width: 70px; height: 70px; }
-        .pomo-circle-bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 6; }
-        .pomo-circle-fg { 
-            fill: none; stroke: var(--accent); stroke-width: 6; 
-            stroke-dasharray: 176; stroke-dashoffset: 0;
-            transition: stroke-dashoffset 1s linear, stroke 0.5s ease;
-            stroke-linecap: round; filter: drop-shadow(0 0 4px var(--accent-glow));
-        }
-        
-        .pomo-controls { flex-grow: 1; padding-left: 20px; }
-        .pomo-time { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -1px; }
-        .pomo-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; font-weight: 500;}
-        .pomo-btn-row { display: flex; gap: 10px; }
-        
-        .btn-pomo {
-            border: none; padding: 6px 14px; border-radius: 16px;
-            font-size: 12px; font-weight: 600; cursor: pointer;
-            transition: 0.2s;
-        }
-        .btn-start { background: var(--text-primary); color: black; }
-        .btn-start:hover { transform: scale(1.05); }
-        .btn-reset { background: rgba(255,255,255,0.1); color: white; }
-        .btn-reset:hover { background: rgba(255,255,255,0.2); }
-
-        /* ================= 右下：设置面板 ================= */
         #settings-panel {
             position: absolute; bottom: 110px; right: 24px; width: 280px;
             max-height: 60vh; overflow-y: auto; z-index: 10; padding: 24px;
         }
-        #settings-panel::-webkit-scrollbar { display: none; }
 
-        /* 主题选择器 */
-        .theme-grid { display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-between; }
-        .theme-btn {
-            width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
-            border: 2px solid transparent; position: relative;
-            transition: all 0.3s var(--ease-apple);
-        }
-        .theme-btn::after {
-            content: ''; position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px;
-            border-radius: 50%; border: 2px solid var(--text-primary);
-            opacity: 0; transition: 0.3s;
-        }
-        .theme-btn.active::after { opacity: 1; }
-        .theme-btn.active { transform: scale(1.1); }
-        .theme-label { text-align: center; font-size: 10px; margin-top: 5px; opacity: 0.6; }
+        /* ================= Styles from previous ================= */
+        .panel-title { font-size: 22px; font-weight: 700; margin-bottom: 5px; }
+        .btn-upload { font-size: 13px; color: var(--accent); background: rgba(255,255,255,0.08); padding: 10px 16px; border-radius: 20px; cursor: pointer; text-align: center; margin-bottom: 20px; font-weight: 600; transition:0.3s; }
+        .btn-upload:hover { background: var(--accent); color: black; }
+        #playlist { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        #playlist::-webkit-scrollbar { width: 0; }
+        .track-item { padding: 12px; border-radius: 14px; margin-bottom: 6px; cursor: pointer; display: flex; align-items: center; transition: 0.2s; }
+        .track-item:hover { background: rgba(255,255,255,0.08); }
+        .track-item.active { background: rgba(255,255,255,0.12); border: 1px solid var(--glass-border); }
+        .track-item.active .t-name { color: var(--accent); }
+        .t-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 180px;}
 
-        /* 形状网格 */
-        .shape-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .shape-btn {
-            aspect-ratio: 1; background: rgba(255,255,255,0.06); border-radius: 16px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.3s; border: 1px solid transparent;
-        }
-        .shape-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
-        .shape-btn.active { 
-            background: var(--accent); box-shadow: 0 8px 20px var(--accent-glow); 
-            border-color: rgba(255,255,255,0.2);
-        }
-        .shape-btn.active span { opacity: 1; color: black; font-weight: 600; }
-        .shape-btn.active .shape-icon { transform: scale(1.1); }
-        .shape-btn span { font-size: 10px; margin-top: 6px; opacity: 0.6; transition: 0.3s; }
-        .shape-icon { font-size: 20px; transition: 0.3s; }
+        /* Pomo */
+        .pomo-ring-container { position: relative; width: 60px; height: 60px; margin-right: 15px; }
+        .pomo-svg { transform: rotate(-90deg); width: 60px; height: 60px; }
+        .pomo-circle-fg { stroke: var(--accent); stroke-dasharray: 151; stroke-dashoffset: 0; transition: 1s linear; }
+        .pomo-time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-        /* 滑块 */
-        .control-group { margin-bottom: 16px; }
-        .control-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: 500;}
-        input[type=range] {
-            -webkit-appearance: none; width: 100%; background: transparent; margin: 0;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            height: 18px; width: 18px; border-radius: 50%; background: white;
-            -webkit-appearance: none; margin-top: -7px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
-        }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); background: var(--accent); }
-
-        /* ================= 底部：播放栏 ================= */
-        #player-bar {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 480px; height: 68px; z-index: 100; padding: 0 24px;
-            display: flex; align-items: center; justify-content: space-between;
-            border-radius: 34px;
-        }
-        .player-left { display: flex; align-items: center; gap: 16px; }
-        .art-box {
-            width: 42px; height: 42px; border-radius: 12px;
-            background: linear-gradient(135deg, var(--accent), #8e2de2);
-            display: flex; align-items: center; justify-content: center; font-size: 18px;
-            transition: background 0.5s;
-        }
-        .meta { display: flex; flex-direction: column; }
-        .song-title { font-size: 14px; font-weight: 600; }
-        .song-dna { font-size: 10px; color: var(--accent); font-family: monospace; margin-top: 3px; opacity: 0.9;}
+        /* Controls */
+        .theme-grid, .shape-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;}
+        .shape-grid { grid-template-columns: repeat(3, 1fr); }
+        .theme-btn { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition:0.3s; }
+        .theme-btn.active { transform: scale(1.2); border-color:white; }
         
-        .controls { display: flex; align-items: center; gap: 18px; }
-        .c-btn { background: none; border: none; color: white; cursor: pointer; padding: 0; transition: 0.2s; opacity: 0.8;}
-        .c-btn:hover { opacity: 1; color: var(--accent); transform: scale(1.1); }
-        .play-btn { 
-            width: 36px; height: 36px; background: white; color: black; border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center; opacity: 1;
-        }
-        .play-btn:hover { background: #eee; color: black; transform: scale(1.05); }
+        .shape-btn { aspect-ratio: 1; background: rgba(255,255,255,0.06); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; border: 1px solid transparent;}
+        .shape-btn.active { background: var(--accent); box-shadow: 0 5px 15px var(--accent-glow); }
+        .shape-btn span { font-size: 9px; margin-top: 4px; opacity: 0.7; }
+        .shape-btn.active span { opacity:1; color:black; font-weight:700;}
+        
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { height: 16px; width: 16px; border-radius: 50%; background: white; -webkit-appearance: none; margin-top: -6px; }
+
+        /* Player */
+        #player-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 480px; height: 68px; z-index: 100; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-radius: 34px; }
+        .art-box { width: 42px; height: 42px; border-radius: 12px; background: var(--accent); display: flex; align-items: center; justify-content: center; transition: 0.5s; }
+        .controls { display: flex; gap: 18px; align-items: center; }
+        .play-btn { width: 36px; height: 36px; background: white; color: black; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;}
 
         input[type="file"] { display: none; }
     </style>
@@ -215,173 +137,108 @@
     <div id="pomo-widget" class="glass-panel">
         <div class="pomo-ring-container">
             <svg class="pomo-svg">
-                <circle class="pomo-circle-bg" cx="35" cy="35" r="28"></circle>
-                <circle class="pomo-circle-fg" id="timer-ring" cx="35" cy="35" r="28"></circle>
+                <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="5"></circle>
+                <circle class="pomo-circle-fg" id="timer-ring" cx="30" cy="30" r="24" fill="none" stroke-width="5"></circle>
             </svg>
         </div>
-        <div class="pomo-controls">
-            <div class="pomo-label" id="timer-mode">Focus Time</div>
+        <div>
+            <div style="font-size:12px; opacity:0.6; margin-bottom:4px;" id="timer-mode">Focus</div>
             <div class="pomo-time" id="timer-display">25:00</div>
-            <div class="pomo-btn-row" style="margin-top:10px;">
-                <button class="btn-pomo btn-start" id="btn-timer-toggle" onclick="toggleTimer()">Start</button>
-                <button class="btn-pomo btn-reset" onclick="resetTimer()">Reset</button>
-            </div>
+            <div style="font-size:11px; color:var(--accent); cursor:pointer; margin-top:5px;" onclick="toggleTimer()">Start / Pause</div>
         </div>
     </div>
 
-    <!-- 右下：设置面板 -->
+    <!-- 右下：设置面板 (包含 AI 开关) -->
     <div id="settings-panel" class="glass-panel">
-        <div class="section-header">Theme</div>
-        <div class="theme-grid" id="theme-grid">
-            <!-- JS 填充 -->
+        
+        <!-- AI 模块 -->
+        <div class="ai-panel-header">
+            <div class="section-header" style="margin:0; color:var(--text-primary);">✨ AI Director</div>
+            <div class="ai-switch" id="ai-toggle" onclick="toggleAI()"></div>
         </div>
+        <div class="ai-status" id="ai-status">AI ACTIVE: LISTENING...</div>
+
+        <div class="section-header">Theme</div>
+        <div class="theme-grid" id="theme-grid"></div>
 
         <div class="section-header">Geometry</div>
         <div class="shape-grid" id="shape-grid"></div>
 
-        <div class="section-header">Visuals</div>
-        <div class="control-group">
-            <div class="control-header"><span>Explosion</span><span id="val-exp">0.5</span></div>
-            <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="setParam('explode', this.value)">
-        </div>
-        <div class="control-group">
-            <div class="control-header"><span>Beat Pulse</span><span id="val-pulse">1.5</span></div>
-            <input type="range" min="0" max="3" step="0.1" value="1.5" oninput="setParam('pulse', this.value)">
-        </div>
-        <div class="control-group">
-            <div class="control-header"><span>Speed</span><span id="val-speed">0.5</span></div>
-            <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="setParam('speed', this.value)">
-        </div>
+        <div class="section-header" style="margin-top:20px">Effects</div>
+        <div style="margin-bottom:10px; font-size:12px; display:flex; justify-content:space-between;"><span>Explosion</span><span id="val-exp">0.5</span></div>
+        <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="setParam('explode', this.value)">
     </div>
 
     <!-- 底部：播放器 -->
     <div id="player-bar" class="glass-panel">
-        <div class="player-left">
+        <div style="display:flex; align-items:center; gap:16px;">
             <div class="art-box">🎵</div>
-            <div class="meta">
-                <div class="song-title" id="now-title">Select Music</div>
-                <div class="song-dna" id="now-dna">waiting...</div>
+            <div>
+                <div style="font-size:14px; font-weight:600;" id="now-title">Select Music</div>
+                <div style="font-size:10px; color:var(--accent); font-family:monospace;" id="now-dna">waiting...</div>
             </div>
         </div>
         <div class="controls">
-            <button class="c-btn" onclick="prevSong()"><svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
-            <button class="c-btn play-btn" onclick="togglePlay()" id="play-btn-ui">
-                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-            <button class="c-btn" onclick="nextSong()"><svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+            <div onclick="prevSong()" style="cursor:pointer">⏮</div>
+            <div class="play-btn" onclick="togglePlay()" id="play-btn-ui">▶</div>
+            <div onclick="nextSong()" style="cursor:pointer">⏭</div>
         </div>
     </div>
 
-    <!-- JS Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        // ================= 1. THEME SYSTEM =================
+        // ================= CONFIG & DATA =================
         const THEMES = {
-            auto:      { name: 'Auto',      bg: '#000000', c1: '#ffffff', c2: '#888888', accent: '#ffffff' }, // Logic handled in JS
             cyberpunk: { name: 'Cyber',     bg: '#050505', c1: '#00f3ff', c2: '#ff00ff', accent: '#00f3ff' },
             sunrise:   { name: 'Sunrise',   bg: '#10002b', c1: '#4facfe', c2: '#f093fb', accent: '#ff9f0a' },
             sunset:    { name: 'Sunset',    bg: '#1a0505', c1: '#ff0844', c2: '#ffb199', accent: '#ff375f' },
-            pastel:    { name: 'Pastel',    bg: '#151515', c1: '#84fab0', c2: '#8fd3f4', accent: '#70e1f5' }
+            pastel:    { name: 'Pastel',    bg: '#151515', c1: '#84fab0', c2: '#8fd3f4', accent: '#70e1f5' },
+            bw:        { name: 'Mono',      bg: '#000000', c1: '#ffffff', c2: '#444444', accent: '#ffffff' }
         };
-
-        let currentTheme = 'cyberpunk';
-
-        function applyTheme(key) {
-            let t = THEMES[key];
-            if (key === 'auto') {
-                const h = new Date().getHours();
-                if (h >= 5 && h < 11) t = THEMES.sunrise;
-                else if (h >= 11 && h < 17) t = THEMES.pastel;
-                else if (h >= 17 && h < 21) t = THEMES.sunset;
-                else t = THEMES.cyberpunk;
-            }
-            
-            currentTheme = key; // store the selection (auto or specific)
-
-            // 1. Update CSS Variables
-            document.documentElement.style.setProperty('--accent', t.accent);
-            document.documentElement.style.setProperty('--accent-glow', t.accent + '66'); // 40% opacity
-            
-            // 2. Update Three.js Background
-            if (renderer) renderer.setClearColor(t.bg);
-            if (scene) scene.fog.color.set(t.bg);
-
-            // 3. Update Particles
-            if (geometry) {
-                const colors = geometry.attributes.color;
-                const c1 = new THREE.Color(t.c1);
-                const c2 = new THREE.Color(t.c2);
-                
-                for(let i=0; i<CONFIG.count; i++) {
-                    const r = Math.random();
-                    colors.setXYZ(i, 
-                        c1.r + (c2.r-c1.r)*r,
-                        c1.g + (c2.g-c1.g)*r,
-                        c1.b + (c2.b-c1.b)*r
-                    );
-                }
-                colors.needsUpdate = true;
-            }
-
-            // 4. Update UI Buttons
-            document.querySelectorAll('.theme-btn').forEach(b => {
-                b.classList.remove('active');
-                if(b.dataset.key === key) b.classList.add('active');
-            });
-
-            // 5. Update Art Box Gradient
-            document.querySelector('.art-box').style.background = `linear-gradient(135deg, ${t.c1}, ${t.c2})`;
-        }
-
-        // ================= 2. DATA & CONFIG =================
-        const PRELOADED = [
-            { name: "Neon Nights (Cyber)", url: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3", type: "preset" },
-            { name: "Morning Dew (Piano)", url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3", type: "preset" },
-            { name: "Solar Flare (Bass)", url: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3", type: "preset" }
-        ];
-
         const SHAPES = [
             { id: 'galaxy', name: 'Galaxy', icon: '🌌' },
             { id: 'dna', name: 'DNA', icon: '🧬' },
             { id: 'sphere', name: 'Sphere', icon: '🔮' },
             { id: 'heart', name: 'Heart', icon: '❤️' },
-            { id: 'torus', name: 'Mobius', icon: '♾️' },
-            { id: 'lorenz', name: 'Chaos', icon: '🦋' }
+            { id: 'lorenz', name: 'Chaos', icon: '🦋' },
+            { id: 'grid', name: 'Grid', icon: '🕸️' }
         ];
-
+        const PRELOADED = [
+            { name: "Cyberpunk Beats", url: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3", type: "preset" },
+            { name: "Chill Lofi", url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3", type: "preset" },
+            { name: "Cinematic Ambient", url: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3", type: "preset" }
+        ];
+        
+        const STATE = { 
+            playlist: [...PRELOADED], currIdx: -1, isPlaying: false, 
+            audioCtx: null, analyser: null, source: null, dnaSeed: 12345,
+            isAI: false, lastAISwitch: 0, aiConfidence: 0
+        };
         const CONFIG = { count: 32000, explode: 0.5, pulse: 1.5, speed: 0.5 };
-        const STATE = { playlist: [...PRELOADED], currIdx: -1, isPlaying: false, audioCtx: null, analyser: null, source: null, dnaSeed: 12345 };
 
-        // ================= 3. THREE.JS CORE =================
+        // ================= THREE.JS =================
         let scene, camera, renderer, particles, material, geometry, controls, clock;
 
         function init() {
             const container = document.getElementById('canvas-container');
             clock = new THREE.Clock();
-            
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(THEMES.cyberpunk.bg, 0.002);
-            
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 3000);
             camera.position.set(0, 50, 450);
-
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setClearColor(THEMES.cyberpunk.bg);
             container.appendChild(renderer.domElement);
-
             controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.autoRotate = true;
-            controls.autoRotateSpeed = CONFIG.speed;
-
+            controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = CONFIG.speed;
+            
             initParticles();
             initUI();
             renderPlaylist();
-            applyTheme('auto'); // Initialize with Auto theme
+            applyTheme('cyberpunk');
             
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth/window.innerHeight;
@@ -391,44 +248,30 @@
             animate();
         }
 
-        // ================= 4. PARTICLE SYSTEM =================
+        // ================= PARTICLES & SHADERS =================
         function initParticles() {
             geometry = new THREE.BufferGeometry();
-            const pos = new Float32Array(CONFIG.count * 3);
-            const target = new Float32Array(CONFIG.count * 3);
-            const colors = new Float32Array(CONFIG.count * 3);
-            const randoms = new Float32Array(CONFIG.count);
+            const pos = new Float32Array(CONFIG.count*3);
+            const target = new Float32Array(CONFIG.count*3);
+            const colors = new Float32Array(CONFIG.count*3);
             const shape = getShapeData('galaxy', 0);
-
             for(let i=0; i<CONFIG.count; i++) {
                 pos[i*3]=shape[i*3]; pos[i*3+1]=shape[i*3+1]; pos[i*3+2]=shape[i*3+2];
                 target[i*3]=pos[i*3]; target[i*3+1]=pos[i*3+1]; target[i*3+2]=pos[i*3+2];
-                randoms[i] = Math.random();
-                colors[i*3]=1; colors[i*3+1]=1; colors[i*3+2]=1; // Init white, mapped by theme later
+                colors[i*3]=1; colors[i*3+1]=1; colors[i*3+2]=1;
             }
-
             geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
             geometry.setAttribute('targetPosition', new THREE.BufferAttribute(target, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
 
             const vShader = `
-                uniform float uTime;
-                uniform float uMix;
-                uniform float uBeat;
-                uniform float uExplode;
-                uniform float uPulse;
-                attribute vec3 targetPosition;
-                attribute vec3 color;
-                attribute float aRandom;
-                varying vec3 vColor;
-                varying float vAlpha;
+                uniform float uTime; uniform float uMix; uniform float uBeat; uniform float uExplode; uniform float uPulse;
+                attribute vec3 targetPosition; attribute vec3 color; varying vec3 vColor; varying float vAlpha;
                 void main() {
                     vColor = color;
                     vec3 pos = mix(position, targetPosition, uMix);
                     float n = sin(pos.x*0.01 + uTime) * cos(pos.z*0.01 + uTime);
-                    pos += normalize(pos) * n * 20.0;
-                    pos += normalize(pos) * (uBeat * uExplode * 60.0);
+                    pos += normalize(pos) * (n*20.0 + uBeat*uExplode*60.0);
                     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
                     gl_Position = projectionMatrix * mvPos;
                     gl_PointSize = 2.5 * (1.0 + uBeat * uPulse) * (300.0 / -mvPos.z);
@@ -436,16 +279,12 @@
                 }
             `;
             const fShader = `
-                varying vec3 vColor;
-                varying float vAlpha;
-                uniform float uBeat;
+                varying vec3 vColor; varying float vAlpha; uniform float uBeat;
                 void main() {
                     vec2 uv = gl_PointCoord.xy - 0.5;
-                    float d = length(uv);
-                    if (d > 0.5) discard;
-                    float glow = pow(1.0 - d * 2.0, 2.0);
+                    if (length(uv) > 0.5) discard;
                     vec3 c = mix(vColor, vec3(1.0), uBeat * 0.4);
-                    gl_FragColor = vec4(c, vAlpha * glow);
+                    gl_FragColor = vec4(c, vAlpha * pow(1.0 - length(uv)*2.0, 2.0));
                 }
             `;
             material = new THREE.ShaderMaterial({
@@ -456,27 +295,98 @@
             scene.add(particles);
         }
 
-        // ================= 5. GEOMETRY LOGIC =================
-        function getShapeData(type, seed) {
-            const arr = new Float32Array(CONFIG.count * 3);
-            let idx = 0;
+        // ================= AI LOGIC (LOCAL HEURISTIC) =================
+        function toggleAI() {
+            STATE.isAI = !STATE.isAI;
+            document.getElementById('ai-toggle').classList.toggle('active');
+            const status = document.getElementById('ai-status');
+            status.classList.toggle('visible');
+            status.innerText = STATE.isAI ? "AI ACTIVE: LISTENING..." : "AI OFF: MANUAL CONTROL";
+        }
+
+        function runAIDirector(data) {
+            if (!STATE.isAI) return;
+            const now = Date.now();
+            if (now - STATE.lastAISwitch < 5000) return; // Cooldown 5s
+
+            // 1. Analyze Audio
+            let bass = 0, mid = 0, high = 0, total = 0;
+            for(let i=0; i<data.length; i++) {
+                const val = data[i];
+                total += val;
+                if (i < 10) bass += val;
+                else if (i < 200) mid += val;
+                else high += val;
+            }
+            const avg = total / data.length;
+            const bassRatio = bass / (total || 1);
+            const highRatio = high / (total || 1);
+
+            let targetShape = '', targetTheme = '', targetExplode = 0.5, statusMsg = "";
+
+            // 2. Decision Tree
+            if (avg > 50 && bassRatio > 0.05) { 
+                // EDM / Rock
+                targetShape = 'grid'; targetTheme = 'cyberpunk'; targetExplode = 1.5;
+                statusMsg = "DETECTING: HIGH ENERGY (EDM)";
+            } else if (highRatio > 0.4 && avg < 40) {
+                // Piano / Classical
+                targetShape = 'dna'; targetTheme = 'pastel'; targetExplode = 0.2;
+                statusMsg = "DETECTING: PURE TONES (PIANO)";
+            } else if (avg < 20) {
+                // Ambient / Intro
+                targetShape = 'sphere'; targetTheme = 'sunrise'; targetExplode = 0.0;
+                statusMsg = "DETECTING: AMBIENT FLOW";
+            } else {
+                // Pop / LoFi
+                targetShape = 'galaxy'; targetTheme = 'sunset'; targetExplode = 0.6;
+                statusMsg = "DETECTING: RHYTHMIC (POP)";
+            }
+
+            // 3. Execute Transition (Only if changed)
+            if (statusMsg !== document.getElementById('ai-status').innerText) {
+                document.getElementById('ai-status').innerText = statusMsg;
+                morphTo(targetShape);
+                applyTheme(targetTheme);
+                CONFIG.explode = targetExplode;
+                material.uniforms.uExplode.value = targetExplode;
+                STATE.lastAISwitch = now;
+            }
+        }
+
+        // ================= UI & LOGIC =================
+        function applyTheme(key) {
+            const t = THEMES[key];
+            document.documentElement.style.setProperty('--accent', t.accent);
+            document.documentElement.style.setProperty('--accent-glow', t.accent+'66');
+            renderer.setClearColor(t.bg); scene.fog.color.set(t.bg);
+            
+            const c1 = new THREE.Color(t.c1), c2 = new THREE.Color(t.c2);
+            const colors = geometry.attributes.color;
             for(let i=0; i<CONFIG.count; i++) {
-                let x,y,z, u=Math.random()*Math.PI*2, v=Math.random()*Math.PI;
-                const r=150;
-                if (type === 'galaxy') {
-                    const ang=Math.random()*Math.PI*2, rad=Math.random()*200;
-                    x=Math.cos(ang+rad*0.05)*rad; y=(Math.random()-0.5)*20; z=Math.sin(ang+rad*0.05)*rad;
-                } else if (type === 'dna') {
-                     x=Math.cos(u*5)*60; z=Math.sin(u*5)*60; y=(u-Math.PI*5)*20; if(i%2==0)x+=20;
-                } else if (type === 'heart') {
-                    x=(Math.random()-0.5)*300; y=(Math.random()-0.5)*300; z=(Math.random()-0.5)*300;
-                    if(Math.abs(x)+Math.abs(y)+Math.abs(z) > 200) { x/=2;y/=2;z/=2; }
-                } else if (type === 'lorenz') {
-                    x=r*Math.sin(v)*Math.cos(u)*0.8; y=r*Math.sin(v)*Math.sin(u)*0.8; z=r*Math.cos(v);
-                } else { // Sphere/Torus
-                    x=r*Math.sin(v)*Math.cos(u); y=r*Math.sin(v)*Math.sin(u); z=r*Math.cos(v);
-                    if(type==='torus') { x=(100+40*Math.cos(v))*Math.cos(u); z=(100+40*Math.cos(v))*Math.sin(u); y=40*Math.sin(v); }
-                }
+                const r = Math.random();
+                colors.setXYZ(i, c1.r+(c2.r-c1.r)*r, c1.g+(c2.g-c1.g)*r, c1.b+(c2.b-c1.b)*r);
+            }
+            colors.needsUpdate = true;
+            document.querySelector('.art-box').style.background = `linear-gradient(135deg, ${t.c1}, ${t.c2})`;
+            
+            document.querySelectorAll('.theme-btn').forEach(b => {
+                b.classList.remove('active');
+                if(b.dataset.key === key) b.classList.add('active');
+            });
+        }
+
+        function getShapeData(type, seed) {
+            const arr = new Float32Array(CONFIG.count*3);
+            let idx=0;
+            for(let i=0; i<CONFIG.count; i++) {
+                let x,y,z, u=Math.random()*Math.PI*2, v=Math.random()*Math.PI, r=150;
+                if(type==='galaxy'){ const a=Math.random()*Math.PI*2,d=Math.random()*200; x=Math.cos(a+d*0.05)*d; y=(Math.random()-0.5)*20; z=Math.sin(a+d*0.05)*d; }
+                else if(type==='dna'){ x=Math.cos(u*5)*60; z=Math.sin(u*5)*60; y=(u-Math.PI*5)*20; if(i%2==0)x+=20; }
+                else if(type==='heart'){ x=(Math.random()-0.5)*300; y=(Math.random()-0.5)*300; z=(Math.random()-0.5)*300; if(Math.abs(x)+Math.abs(y)+Math.abs(z)>200){x/=2;y/=2;z/=2;} }
+                else if(type==='grid'){ x=(Math.random()-0.5)*400; z=(Math.random()-0.5)*400; y=Math.floor((Math.random()-0.5)*5)*40; }
+                else if(type==='lorenz'){ x=r*Math.sin(v)*Math.cos(u)*0.8; y=r*Math.sin(v)*Math.sin(u)*0.8; z=r*Math.cos(v); } // simplified
+                else { x=r*Math.sin(v)*Math.cos(u); y=r*Math.sin(v)*Math.sin(u); z=r*Math.cos(v); }
                 arr[idx++]=x; arr[idx++]=y; arr[idx++]=z;
             }
             return arr;
@@ -495,98 +405,83 @@
                 if(p<1) requestAnimationFrame(anim);
             };
             anim();
-        }
-
-        // ================= 6. POMODORO =================
-        let timerInt, timerTime = 25*60, timerMode = 'work';
-        const TIMER_WORK = 25*60, TIMER_REST = 5*60;
-        function updateTimerUI() {
-            const m = Math.floor(timerTime/60).toString().padStart(2,'0'), s = (timerTime%60).toString().padStart(2,'0');
-            document.getElementById('timer-display').innerText = `${m}:${s}`;
-            const total = timerMode==='work'?TIMER_WORK:TIMER_REST;
-            document.getElementById('timer-ring').style.strokeDashoffset = 176 * (1 - timerTime/total);
-        }
-        function toggleTimer() {
-            const btn = document.getElementById('btn-timer-toggle');
-            if (timerInt) { clearInterval(timerInt); timerInt=null; btn.innerText='Start'; }
-            else {
-                btn.innerText='Pause';
-                timerInt = setInterval(() => {
-                    timerTime--;
-                    if (timerTime<=0) {
-                        timerMode = timerMode==='work'?'rest':'work';
-                        timerTime = timerMode==='work'?TIMER_WORK:TIMER_REST;
-                        document.getElementById('timer-mode').innerText = timerMode==='work'?'Focus Time':'Take a Break';
-                        alert(timerMode==='work'?"Time to Focus!":"Break Time!");
-                        toggleTimer();
-                    }
-                    updateTimerUI();
-                }, 1000);
-            }
-        }
-        function resetTimer() { clearInterval(timerInt); timerInt=null; document.getElementById('btn-timer-toggle').innerText='Start'; timerTime=TIMER_WORK; timerMode='work'; updateTimerUI(); }
-
-        // ================= 7. UI & AUDIO =================
-        function initUI() {
-            // Themes
-            const themeGrid = document.getElementById('theme-grid');
-            Object.keys(THEMES).forEach(k => {
-                const b = document.createElement('div'); b.className = 'theme-btn'; b.dataset.key = k;
-                b.style.background = k==='auto' ? 'conic-gradient(#4facfe, #f093fb, #ff0844, #4facfe)' : THEMES[k].c1;
-                b.onclick = () => applyTheme(k);
-                // b.innerHTML = `<div class="theme-label">${THEMES[k].name}</div>`; // Label optional
-                themeGrid.appendChild(b);
-            });
-
-            // Shapes
-            const shapeGrid = document.getElementById('shape-grid');
-            SHAPES.forEach((s,i) => {
-                const b = document.createElement('div'); b.className = `shape-btn ${i===0?'active':''}`;
-                b.innerHTML = `<div class="shape-icon">${s.icon}</div><span>${s.name}</span>`;
-                b.onclick = () => { document.querySelectorAll('.shape-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); morphTo(s.id); };
-                shapeGrid.appendChild(b);
+            
+            // Sync UI
+            document.querySelectorAll('.shape-btn').forEach(b => {
+                b.classList.remove('active');
+                if(b.dataset.id === type) b.classList.add('active');
             });
         }
 
-        function renderPlaylist() {
-            const ul = document.getElementById('playlist'); ul.innerHTML = '';
-            const h1 = document.createElement('div'); h1.className='section-header'; h1.innerText='PRE-LOADED'; ul.appendChild(h1);
-            STATE.playlist.forEach((t, i) => {
-                if (i === PRELOADED.length) { const h2=document.createElement('div'); h2.className='section-header'; h2.innerText='LOCAL FILES'; ul.appendChild(h2); }
-                const li = document.createElement('li'); li.className = `track-item ${i===STATE.currIdx?'active':''}`;
-                li.innerHTML = `<div class="t-icon">${t.type==='preset'?'💿':'📂'}</div><div class="t-info"><div class="t-name">${t.name.replace(/\.[^/.]+$/, "")}</div></div>`;
-                li.onclick = () => playSong(i);
-                ul.appendChild(li);
-            });
-        }
-        document.getElementById('file-input').onchange = e => { STATE.playlist.push(...Array.from(e.target.files)); renderPlaylist(); };
-
+        // ================= APP LOGIC =================
         function playSong(idx) {
             STATE.currIdx = idx; renderPlaylist();
-            const track = STATE.playlist[idx];
-            document.getElementById('now-title').innerText = track.name.replace(/\.[^/.]+$/, "");
-            let hash=0; for(let i=0; i<track.name.length; i++) hash = ((hash<<5)-hash)+track.name.charCodeAt(i);
-            STATE.dnaSeed = Math.abs(hash);
+            const t = STATE.playlist[idx];
+            document.getElementById('now-title').innerText = t.name.replace(/\.[^/.]+$/, "");
+            let h=0; for(let i=0;i<t.name.length;i++) h=((h<<5)-h)+t.name.charCodeAt(i);
+            STATE.dnaSeed=Math.abs(h);
             document.getElementById('now-dna').innerText = "DNA: "+STATE.dnaSeed.toString(16).toUpperCase();
             
-            if(!STATE.audioCtx) STATE.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if(STATE.audioCtx.state === 'suspended') STATE.audioCtx.resume();
+            if(!STATE.audioCtx) STATE.audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+            if(STATE.audioCtx.state==='suspended') STATE.audioCtx.resume();
             if(STATE.source) STATE.source.stop();
 
             const play = b => {
-                STATE.source = STATE.audioCtx.createBufferSource(); STATE.source.buffer = b;
-                if(!STATE.analyser) { STATE.analyser = STATE.audioCtx.createAnalyser(); STATE.analyser.fftSize=512; }
+                STATE.source=STATE.audioCtx.createBufferSource(); STATE.source.buffer=b;
+                if(!STATE.analyser){STATE.analyser=STATE.audioCtx.createAnalyser(); STATE.analyser.fftSize=512;}
                 STATE.source.connect(STATE.analyser); STATE.analyser.connect(STATE.audioCtx.destination);
-                STATE.source.start(0); STATE.isPlaying = true; updatePlayBtn();
-                STATE.source.onended = () => nextSong();
+                STATE.source.start(0); STATE.isPlaying=true;
+                STATE.source.onended=()=>playSong((STATE.currIdx+1)%STATE.playlist.length);
             };
-            if(track.type==='preset') fetch(track.url).then(r=>r.arrayBuffer()).then(b=>STATE.audioCtx.decodeAudioData(b)).then(play);
-            else { const r=new FileReader(); r.onload=e=>STATE.audioCtx.decodeAudioData(e.target.result).then(play); r.readAsArrayBuffer(track); }
+            if(t.type==='preset') fetch(t.url).then(r=>r.arrayBuffer()).then(b=>STATE.audioCtx.decodeAudioData(b)).then(play);
+            else { const r=new FileReader(); r.onload=e=>STATE.audioCtx.decodeAudioData(e.target.result).then(play); r.readAsArrayBuffer(t); }
         }
-        window.togglePlay = () => { if(STATE.audioCtx){ STATE.audioCtx.state==='running'?STATE.audioCtx.suspend():STATE.audioCtx.resume(); STATE.isPlaying=!STATE.isPlaying; updatePlayBtn(); }};
-        function updatePlayBtn() { document.getElementById('play-btn-ui').innerHTML = STATE.audioCtx.state==='running'? `<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : `<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`; }
+
+        function initUI() {
+            const tGrid = document.getElementById('theme-grid');
+            Object.keys(THEMES).forEach(k => {
+                const b = document.createElement('div'); b.className='theme-btn'; b.dataset.key=k;
+                b.style.background = THEMES[k].c1; b.onclick=()=>applyTheme(k); tGrid.appendChild(b);
+            });
+            const sGrid = document.getElementById('shape-grid');
+            SHAPES.forEach((s,i) => {
+                const b = document.createElement('div'); b.className=`shape-btn ${i===0?'active':''}`; b.dataset.id=s.id;
+                b.innerHTML = `<div style="font-size:20px">${s.icon}</div><span>${s.name}</span>`;
+                b.onclick = () => { 
+                    // Manual override disables AI temporarily or handled by AI logic? 
+                    // For now, let manual override work
+                    morphTo(s.id); 
+                };
+                sGrid.appendChild(b);
+            });
+        }
+        function renderPlaylist() {
+            const ul=document.getElementById('playlist'); ul.innerHTML='';
+            const h1=document.createElement('div'); h1.className='section-header'; h1.innerText='PRE-LOADED'; ul.appendChild(h1);
+            STATE.playlist.forEach((t,i)=>{
+                if(i===PRELOADED.length){const h2=document.createElement('div'); h2.className='section-header'; h2.innerText='LOCAL'; ul.appendChild(h2);}
+                const li=document.createElement('li'); li.className=`track-item ${i===STATE.currIdx?'active':''}`;
+                li.innerHTML=`<div style="font-size:14px; margin-right:10px">${t.type==='preset'?'💿':'📂'}</div><div class="t-name">${t.name.replace(/\.[^/.]+$/, "")}</div>`;
+                li.onclick=()=>playSong(i); ul.appendChild(li);
+            });
+        }
+        document.getElementById('file-input').onchange = e => { STATE.playlist.push(...e.target.files); renderPlaylist(); };
+        window.togglePlay = () => { if(STATE.audioCtx){ STATE.audioCtx.state==='running'?STATE.audioCtx.suspend():STATE.audioCtx.resume(); STATE.isPlaying=!STATE.isPlaying; }};
         window.nextSong=()=>playSong((STATE.currIdx+1)%STATE.playlist.length); window.prevSong=()=>playSong((STATE.currIdx-1+STATE.playlist.length)%STATE.playlist.length);
-        window.setParam = (k,v) => { CONFIG[k]=parseFloat(v); if(k==='speed')controls.autoRotateSpeed=CONFIG.speed; else if(material){if(k==='explode')material.uniforms.uExplode.value=CONFIG.explode;if(k==='pulse')material.uniforms.uPulse.value=CONFIG.pulse;} };
+        window.setParam = (k,v) => { CONFIG[k]=parseFloat(v); if(k==='speed')controls.autoRotateSpeed=CONFIG.speed; else if(material){if(k==='explode')material.uniforms.uExplode.value=CONFIG.explode;} };
+
+        // Pomo Logic
+        let timerInt, timerTime=25*60;
+        function toggleTimer(){ 
+            if(timerInt){clearInterval(timerInt); timerInt=null;}
+            else { timerInt=setInterval(()=>{ timerTime--; updateTimerUI(); if(timerTime<=0){alert('Done!');toggleTimer();} },1000); }
+        }
+        function resetTimer(){ clearInterval(timerInt); timerInt=null; timerTime=25*60; updateTimerUI(); }
+        function updateTimerUI(){
+            const m=Math.floor(timerTime/60).toString().padStart(2,'0'), s=(timerTime%60).toString().padStart(2,'0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+            document.getElementById('timer-ring').style.strokeDashoffset = 151*(1-timerTime/(25*60));
+        }
 
         function animate() {
             requestAnimationFrame(animate);
@@ -596,6 +491,9 @@
                 STATE.analyser.getByteFrequencyData(data);
                 let sum=0; for(let i=0;i<50;i++) sum+=data[i];
                 material.uniforms.uBeat.value += (sum/50/255 - material.uniforms.uBeat.value)*0.3;
+                
+                // Run AI
+                runAIDirector(data);
             }
             controls.update(); renderer.render(scene, camera);
         }
