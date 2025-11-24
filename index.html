@@ -575,12 +575,14 @@
             sunrise:   { bg: '#10002b', c1: '#4facfe', c2: '#f093fb', accent: '#ff9f0a' },
             sunset:    { bg: '#1a0505', c1: '#ff0844', c2: '#ffb199', accent: '#ff375f' },
             pastel:    { bg: '#151515', c1: '#84fab0', c2: '#8fd3f4', accent: '#70e1f5' },
-            bw:        { bg: '#000000', c1: '#ffffff', c2: '#444444', accent: '#ffffff' }
+            bw:        { bg: '#000000', c1: '#ffffff', c2: '#444444', accent: '#ffffff' },
+            inkwash:   { bg: '#0c0c0c', c1: '#ffffff', c2: '#555555', accent: '#d4af37'}
         };
         const SHAPES = [
             { id: 'galaxy', name: 'Galaxy', icon: '🌌' }, { id: 'dna', name: 'DNA', icon: '🧬' },
             { id: 'sphere', name: 'Sphere', icon: '🔮' }, { id: 'heart', name: 'Heart', icon: '❤️' },
-            { id: 'lorenz', name: 'Chaos', icon: '🦋' }, { id: 'grid', name: 'Grid', icon: '🕸️' }
+            { id: 'lorenz', name: 'Chaos', icon: '🦋' }, { id: 'grid', name: 'Grid', icon: '🕸️' },
+            { id: 'ink', name: 'Ink', icon: '🖌️' }
         ];
 
         // Use bundled assets so the experience works fully offline.
@@ -708,32 +710,111 @@
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
             const vShader = `
-                uniform float uTime; uniform float uMix; uniform float uBeat; uniform float uExplode; uniform float uPulse;
-                attribute vec3 targetPosition; attribute vec3 color; varying vec3 vColor; varying float vAlpha;
+                uniform float uTime; 
+                uniform float uMix; 
+                uniform float uBeat; 
+                uniform float uExplode; 
+                uniform float uPulse;
+
+                attribute vec3 targetPosition; 
+                attribute vec3 color; 
+
+                varying vec3 vColor; 
+                varying float vAlpha;
+                varying vec3 vWorldPos;
+
                 void main() {
                     vColor = color;
+
+                    // 当前粒子位置（morph）
                     vec3 pos = mix(position, targetPosition, uMix);
-                    float n = sin(pos.x*0.01 + uTime) * cos(pos.z*0.01 + uTime);
-                    pos += normalize(pos) * (n*20.0 + uBeat*uExplode*60.0);
+
+                    // 世界坐标（重要，用于水墨贴图）
+                    vWorldPos = pos;
+
+                    // 噪声变形
+                    float n = sin(pos.x * 0.01 + uTime) * cos(pos.z * 0.01 + uTime);
+                    pos += normalize(pos) * (n * 20.0 + uBeat * uExplode * 60.0);
+
                     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
                     gl_Position = projectionMatrix * mvPos;
+
                     gl_PointSize = 2.5 * (1.0 + uBeat * uPulse) * (300.0 / -mvPos.z);
                     vAlpha = smoothstep(1000.0, 100.0, -mvPos.z);
                 }
+
             `;
             const fShader = `
-                varying vec3 vColor; varying float vAlpha; uniform float uBeat;
+                varying vec3 vColor;
+                varying float vAlpha;
+                varying vec3 vWorldPos;
+
+                uniform float uBeat;
+                uniform sampler2D uInkTex;
+                uniform float uInkIntensity;
+
                 void main() {
-                    vec2 uv = gl_PointCoord.xy - 0.5;
-                    if (length(uv) > 0.5) discard;
-                    vec3 c = mix(vColor, vec3(1.0), uBeat * 0.4);
-                    gl_FragColor = vec4(c, vAlpha * pow(1.0 - length(uv)*2.0, 2.0));
+                    // 粒子自身圆形 mask
+                    vec2 uv = gl_PointCoord.xy;
+                    vec2 centered = uv - 0.5;
+                    float d = length(centered);
+                    if (d > 0.5) discard;
+                    float feather = smoothstep(0.5, 0.3, d);
+
+                    // 原颜色
+                    vec3 base = mix(vColor, vec3(1.0), uBeat * 0.4);
+                    vec3 inkBase = mix(vec3(0.0), base, 0.6);
+                    inkBase = mix(inkBase, vec3(1.0), uBeat * 0.2);
+
+                    // 水墨贴图
+                    float inkMask = 1.0;
+
+                    if (uInkIntensity > 0.0) {
+                        // 将世界坐标映射到 0~1
+                        vec2 inkUV = vec2(
+                            vWorldPos.x * 0.002 + 0.5,
+                            vWorldPos.z * 0.002 + 0.5
+                        );
+
+                        inkMask = texture2D(uInkTex, inkUV).r;
+                    }
+
+                    float alpha = vAlpha * feather * mix(1.0, inkMask, uInkIntensity);
+                    gl_FragColor = vec4(inkBase, alpha);
                 }
+
             `;
             material = new THREE.ShaderMaterial({
-                uniforms: { uTime:{value:0}, uMix:{value:0}, uBeat:{value:0}, uExplode:{value:CONFIG.explode}, uPulse:{value:CONFIG.pulse} },
-                vertexShader: vShader, fragmentShader: fShader, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+                uniforms: { 
+                    uTime: { value: 0 },
+                    uMix: { value: 0 },
+                    uBeat: { value: 0 },
+                    uExplode: { value: CONFIG.explode },
+                    uPulse: { value: CONFIG.pulse },
+                    uInkTex: { value: null },      
+                    uInkIntensity: { value: 0.0 }  
+                },
+                vertexShader: vShader,
+                fragmentShader: fShader,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
             });
+            const inkLoader = new THREE.TextureLoader();
+            inkLoader.load(
+                './assets/ink.jpg',
+                function (tex) {
+                    tex.wrapS = THREE.ClampToEdgeWrapping;
+                    tex.wrapT = THREE.ClampToEdgeWrapping;
+                    tex.minFilter = THREE.LinearFilter;
+                    material.uniforms.uInkTex.value = tex;
+                    console.log('Ink texture loaded');
+                },
+                undefined,
+                function (err) {
+                    console.warn('Failed to load ink texture', err);
+                }
+            );
             particles = new THREE.Points(geometry, material);
             scene.add(particles);
         }
@@ -779,7 +860,8 @@
                 if(STATE.currentMood !== 'calm') { morphTo('sphere'); applyTheme('pastel'); material.uniforms.uExplode.value = 0.1; detected = 'calm'; }
             } else if (bassRatio > 0.1) { // Deep
                 if(STATE.currentMood !== 'melancholy') { morphTo('heart'); applyTheme('sunset'); material.uniforms.uExplode.value = 0.4; detected = 'melancholy'; }
-            } else { // Joy
+            }else if (avg < 15 && bassRatio < 0.05) { morphTo('ink'); applyTheme('inkwash'); material.uniforms.uExplode.value = 0.05; detected = 'ink'; 
+            }else { // Joy
                 if(STATE.currentMood !== 'joy') { morphTo('galaxy'); applyTheme('sunrise'); material.uniforms.uExplode.value = 0.6; detected = 'joy'; }
             }
             if (detected) { STATE.lastAISwitch = now; showMoodCard(detected); }
@@ -812,6 +894,7 @@
                 else if(type==='heart'){ x=(Math.random()-0.5)*300; y=(Math.random()-0.5)*300; z=(Math.random()-0.5)*300; if(Math.abs(x)+Math.abs(y)+Math.abs(z)>200){x/=2;y/=2;z/=2;} }
                 else if(type==='grid'){ x=(Math.random()-0.5)*400; z=(Math.random()-0.5)*400; y=Math.floor((Math.random()-0.5)*5)*40; }
                 else if(type==='lorenz'){ x=r*Math.sin(v)*Math.cos(u)*0.8; y=r*Math.sin(v)*Math.sin(u)*0.8; z=r*Math.cos(v); }
+                else if(type==='ink'){ const r = 200 * Math.sqrt(Math.random()); const theta = Math.random() * Math.PI * 2; const phi = Math.acos(2 * Math.random() - 1); x = r * Math.sin(phi) * Math.cos(theta); y = r * Math.sin(phi) * Math.sin(theta); z = (Math.random() - 0.5) * 80; x += (Math.random() - 0.5) * 20; y += (Math.random() - 0.5) * 20; }
                 else { x=r*Math.sin(v)*Math.cos(u); y=r*Math.sin(v)*Math.sin(u); z=r*Math.cos(v); }
                 arr[idx++]=x; arr[idx++]=y; arr[idx++]=z;
             }
@@ -824,6 +907,15 @@
             geometry.attributes.targetPosition.array.set(getShapeData(type, STATE.dnaSeed));
             geometry.attributes.targetPosition.needsUpdate = true;
             material.uniforms.uMix.value = 0;
+
+            if (material && material.uniforms && material.uniforms.uInkIntensity) {
+                if (type === 'ink') {
+                    material.uniforms.uInkIntensity.value = 1.0;  
+                } else {
+                    material.uniforms.uInkIntensity.value = 0.0;  
+                }
+            }
+
             const start = clock.getElapsedTime();
             const anim = () => {
                 const p = Math.min((clock.getElapsedTime()-start)/2, 1);
@@ -831,7 +923,11 @@
                 if(p<1) requestAnimationFrame(anim);
             };
             anim();
-            document.querySelectorAll('.shape-btn').forEach(b => { b.classList.remove('active'); if(b.dataset.id === type) b.classList.add('active'); });
+
+            document.querySelectorAll('.shape-btn').forEach(b => { 
+                b.classList.remove('active'); 
+                if(b.dataset.id === type) b.classList.add('active'); 
+            });
         }
 
         // ================= PLAYER (WITH VOLUME) =================
