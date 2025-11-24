@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosmic Flow | Creator Edition</title>
+    <title>Cosmic Flow | Zen Edition</title>
     
     <style>
         /* ================= 设计系统 ================= */
@@ -26,7 +26,7 @@
 
         #canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
 
-        /* ================= UI 基础 ================= */
+        /* ================= UI 基础类 ================= */
         .glass-panel {
             background: var(--glass-bg);
             backdrop-filter: saturate(180%) blur(40px);
@@ -34,7 +34,8 @@
             border: 1px solid var(--glass-border);
             box-shadow: 0 24px 48px rgba(0,0,0,0.5);
             border-radius: 28px;
-            transition: all 0.5s var(--ease-apple);
+            /* 关键：所有面板加上过渡，以便沉浸模式淡出 */
+            transition: transform 0.6s var(--ease-apple), opacity 0.6s var(--ease-apple);
         }
 
         .section-header {
@@ -42,151 +43,194 @@
             color: var(--text-secondary); margin: 20px 0 10px 4px; font-weight: 600;
         }
 
-        /* ================= 顶部切换栏 (New) ================= */
-        #mode-switcher {
-            position: absolute; top: 24px; right: 24px; z-index: 50;
-            background: rgba(0,0,0,0.3); border-radius: 20px; padding: 4px;
-            display: flex; gap: 4px; border: 1px solid var(--glass-border);
+        /* ================= 沉浸模式切换按钮 (Top Pill) ================= */
+        #view-toggle {
+            position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px; border-radius: 20px;
+            display: flex; align-items: center; gap: 8px;
+            cursor: pointer; transition: 0.3s;
+            opacity: 0.6;
         }
-        .mode-btn {
-            padding: 6px 14px; border-radius: 16px; font-size: 12px; cursor: pointer;
-            color: var(--text-secondary); transition: 0.3s;
+        #view-toggle:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+        .view-icon { font-size: 14px; }
+        .view-text { font-size: 12px; font-weight: 500; letter-spacing: 0.5px; }
+        .shortcut-hint { 
+            font-size: 10px; opacity: 0.5; margin-left: 8px; border: 1px solid rgba(255,255,255,0.3); 
+            padding: 1px 4px; border-radius: 4px; 
         }
-        .mode-btn.active { background: rgba(255,255,255,0.15); color: white; font-weight: 600; }
 
-        /* ================= 音乐编程面板 (Maker Panel) ================= */
-        #maker-panel {
-            position: absolute; bottom: 110px; right: 24px; width: 280px;
-            max-height: 60vh; overflow-y: auto; z-index: 10; padding: 24px;
-            transform: translateX(0); opacity: 1;
+        /* ================= 沉浸模式状态 (Immersive State) ================= */
+        /* 当 body 拥有 .immersive 类时，隐藏所有 UI */
+        body.immersive .glass-panel {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95); /* 轻微缩小淡出 */
         }
-        #maker-panel.hidden { transform: translateX(50px); opacity: 0; pointer-events: none; }
-
-        /* 乐器网格 */
-        .inst-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .inst-btn {
-            background: rgba(255,255,255,0.06); border-radius: 16px; padding: 15px;
-            cursor: pointer; transition: 0.2s; border: 1px solid transparent;
-            display: flex; flex-direction: column; align-items: center; gap: 8px;
+        
+        /* 播放器单独处理：往下沉 */
+        body.immersive #player-bar {
+            transform: translate(-50%, 100px);
         }
-        .inst-btn:hover { background: rgba(255,255,255,0.1); }
-        .inst-btn.active { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent-glow); }
-        .inst-icon { font-size: 24px; }
-        .inst-name { font-size: 12px; font-weight: 600; }
-
-        /* 节奏选择 */
-        .rhythm-row { display: flex; gap: 8px; margin-bottom: 20px; }
-        .rhythm-btn {
-            flex: 1; padding: 10px; text-align: center; border-radius: 12px;
-            background: rgba(255,255,255,0.06); font-size: 11px; cursor: pointer; transition: 0.2s;
+        
+        /* 顶部按钮变透明一点 */
+        body.immersive #view-toggle {
+            opacity: 0.2;
         }
-        .rhythm-btn.active { background: white; color: black; font-weight: bold; }
-
-        /* 播放控制大按钮 */
-        #maker-play-btn {
-            width: 100%; padding: 14px; border-radius: 18px;
-            background: white; color: black; font-weight: 700; font-size: 14px;
-            border: none; cursor: pointer; margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 8px;
-            transition: transform 0.2s;
+        body.immersive #view-toggle:hover {
+            opacity: 1;
         }
-        #maker-play-btn:hover { transform: scale(1.02); }
-        #maker-play-btn.playing { background: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 
-        /* ================= Settings Panel (原设置面板) ================= */
-        #settings-panel {
-            position: absolute; bottom: 110px; right: 24px; width: 280px;
-            max-height: 60vh; overflow-y: auto; z-index: 10; padding: 24px;
+        /* Mood Card 保持显示，但位置微调 */
+        body.immersive #mood-card {
+            /* 保持可见，作为屏保的一部分 */
         }
-        #settings-panel.hidden { transform: translateX(50px); opacity: 0; pointer-events: none; }
 
-        /* 复用之前的样式 */
-        .shape-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .shape-btn { aspect-ratio: 1; background: rgba(255,255,255,0.06); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; }
-        .shape-btn.active { background: var(--accent); color:black; }
+
+        /* ================= Mood Card ================= */
+        #mood-card {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 320px; padding: 30px; z-index: 20; text-align: center; opacity: 0; pointer-events: none;
+            transition: opacity 0.8s var(--ease-apple), transform 0.8s var(--ease-apple);
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 28px;
+        }
+        #mood-card.visible { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+        .mood-icon { font-size: 32px; margin-bottom: 10px; display: block; animation: float 3s infinite ease-in-out; }
+        .mood-title { font-size: 24px; font-weight: 700; margin-bottom: 5px; }
+        .mood-subtitle { font-size: 13px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; font-weight: 600; }
+        .mood-quote { font-size: 16px; line-height: 1.5; font-style: italic; opacity: 0.9; margin-bottom: 20px; font-family: "Georgia", serif; }
+        .mood-tip-box { background: rgba(255,255,255,0.08); padding: 12px; border-radius: 12px; font-size: 12px; color: var(--text-secondary); display:flex; justify-content:center; gap:8px;}
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+        /* ================= Layout Panels ================= */
+        #library-panel { position: absolute; top: 80px; left: 24px; width: 260px; height: calc(100vh - 200px); z-index: 10; display: flex; flex-direction: column; padding: 24px; }
+        #pomo-widget { position: absolute; top: 80px; right: 24px; width: 280px; padding: 24px; z-index: 11; display: flex; align-items: center; }
+        #settings-panel { position: absolute; bottom: 120px; right: 24px; width: 280px; max-height: 50vh; overflow-y: auto; z-index: 10; padding: 24px; }
+        #player-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 480px; height: 68px; z-index: 100; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-radius: 34px; }
+
+        /* ================= UI Components ================= */
+        .panel-title { font-size: 22px; font-weight: 700; margin-bottom: 5px; }
+        .btn-upload { font-size: 13px; color: var(--accent); background: rgba(255,255,255,0.08); padding: 10px 16px; border-radius: 20px; cursor: pointer; text-align: center; margin-bottom: 20px; font-weight: 600; transition:0.3s; border:1px solid transparent; }
+        .btn-upload:hover { background: var(--accent); color: black; }
+        #playlist { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        #playlist::-webkit-scrollbar { width: 0; }
+        .track-item { padding: 12px; border-radius: 14px; margin-bottom: 6px; cursor: pointer; display: flex; align-items: center; transition: 0.2s; }
+        .track-item:hover { background: rgba(255,255,255,0.08); }
+        .track-item.active { background: rgba(255,255,255,0.12); border: 1px solid var(--glass-border); }
+        .track-item.active .t-name { color: var(--accent); }
+        .t-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 180px;}
+
+        /* Controls */
+        .theme-grid, .shape-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;}
+        .shape-grid { grid-template-columns: repeat(3, 1fr); }
+        .theme-btn { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition:0.3s; }
+        .theme-btn.active { transform: scale(1.2); border-color:white; }
+        .shape-btn { aspect-ratio: 1; background: rgba(255,255,255,0.06); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; border: 1px solid transparent;}
+        .shape-btn.active { background: var(--accent); box-shadow: 0 5px 15px var(--accent-glow); }
+        .shape-btn span { font-size: 9px; margin-top: 4px; opacity: 0.7; }
+        .shape-btn.active span { opacity:1; color:black; font-weight:700;}
         input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; }
-        input[type=range]::-webkit-slider-thumb { height: 16px; width: 16px; border-radius: 50%; background: white; -webkit-appearance: none; margin-top: -6px; }
-
-        /* Layout */
-        #library-panel { position: absolute; top: 24px; left: 24px; width: 260px; height: calc(100vh - 140px); z-index: 10; display: flex; flex-direction: column; padding: 24px; }
-        #player-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 480px; height: 68px; z-index: 100; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-radius: 34px; }
+        input[type=range]::-webkit-slider-thumb { height: 16px; width: 16px; border-radius: 50%; background: white; -webkit-appearance: none; margin-top: -6px; transition:0.2s;}
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); background: var(--accent); }
         
-        /* Hidden elements */
+        /* Pomo & Player */
+        .pomo-svg { transform: rotate(-90deg); width: 60px; height: 60px; margin-right: 15px;}
+        .pomo-circle-fg { stroke: var(--accent); stroke-dasharray: 151; stroke-dashoffset: 0; transition: 1s linear; }
+        .pomo-time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .art-box { width: 42px; height: 42px; border-radius: 12px; background: var(--accent); display: flex; align-items: center; justify-content: center; transition: 0.5s; }
+        .controls { display: flex; gap: 18px; align-items: center; }
+        .play-btn { width: 36px; height: 36px; background: white; color: black; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition:0.2s;}
+        .play-btn:hover { transform:scale(1.05); }
+
+        /* AI Toggle */
+        .ai-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .ai-switch { position: relative; width: 44px; height: 24px; background: rgba(255,255,255,0.2); border-radius: 12px; cursor: pointer; transition: 0.3s; }
+        .ai-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .ai-switch.active { background: var(--accent); }
+        .ai-switch.active::after { transform: translateX(20px); }
+        .ai-status { font-size: 10px; font-family: monospace; color: var(--accent); opacity: 0; transition: opacity 0.5s; margin-top: -15px; margin-bottom: 15px; text-align: right; }
+        .ai-status.visible { opacity: 1; animation: pulseText 2s infinite; }
+        @keyframes pulseText { 0%{opacity:0.6} 50%{opacity:1} 100%{opacity:0.6} }
+
         input[type="file"] { display: none; }
-        .art-box { width: 42px; height: 42px; border-radius: 12px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div id="canvas-container"></div>
 
-    <!-- 顶部模式切换 -->
-    <div id="mode-switcher">
-        <div class="mode-btn active" onclick="switchMode('settings')" id="btn-mode-settings">Settings</div>
-        <div class="mode-btn" onclick="switchMode('maker')" id="btn-mode-maker">🎹 Maker</div>
+    <!-- 沉浸模式切换按钮 -->
+    <div id="view-toggle" onclick="toggleImmersive()">
+        <span class="view-icon">✦</span>
+        <span class="view-text">Visuals</span>
+        <span class="shortcut-hint">TAB</span>
     </div>
 
-    <!-- 面板 1: 原设置面板 -->
-    <div id="settings-panel" class="glass-panel">
-        <div class="section-header">Visual Style</div>
-        <div class="shape-grid" id="shape-grid"></div>
-        <div class="section-header" style="margin-top:20px">Effects</div>
-        <div style="font-size:12px; margin-bottom:5px; display:flex; justify-content:space-between;"><span>Explosion</span><span id="val-exp">0.5</span></div>
-        <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="setParam('explode', this.value)">
-    </div>
-
-    <!-- 面板 2: 音乐编程面板 (NEW) -->
-    <div id="maker-panel" class="glass-panel hidden">
-        <div class="section-header" style="margin-top:0">Instrument</div>
-        <div class="inst-grid">
-            <div class="inst-btn active" onclick="setInst('pad', this)">
-                <div class="inst-icon">☁️</div>
-                <div class="inst-name">Ether Pad</div>
-            </div>
-            <div class="inst-btn" onclick="setInst('pluck', this)">
-                <div class="inst-icon">🎸</div>
-                <div class="inst-name">Cosmic Pluck</div>
-            </div>
-            <div class="inst-btn" onclick="setInst('bass', this)">
-                <div class="inst-icon">🔊</div>
-                <div class="inst-name">Deep Bass</div>
-            </div>
-            <div class="inst-btn" onclick="setInst('lead', this)">
-                <div class="inst-icon">⚡️</div>
-                <div class="inst-name">Neon Lead</div>
-            </div>
+    <!-- Mood Card -->
+    <div id="mood-card" class="glass-panel">
+        <span class="mood-icon" id="card-icon">✨</span>
+        <div class="mood-subtitle" id="card-tone">ETHEREAL FLOW</div>
+        <div class="mood-title" id="card-title">Deep Focus</div>
+        <div class="mood-quote" id="card-quote">"Quiet the mind, and the soul will speak."</div>
+        <div class="mood-tip-box">
+            <span>💡</span> <span id="card-tip">Take a deep breath.</span>
         </div>
-
-        <div class="section-header">Rhythm Pattern</div>
-        <div class="rhythm-row">
-            <div class="rhythm-btn active" onclick="setRhythm('flow', this)">Flow</div>
-            <div class="rhythm-btn" onclick="setRhythm('pulse', this)">Pulse</div>
-            <div class="rhythm-btn" onclick="setRhythm('chaos', this)">Chaos</div>
-        </div>
-
-        <div class="section-header">Intensity / Speed</div>
-        <input type="range" min="0.1" max="1.0" step="0.1" value="0.5" oninput="setMakerIntensity(this.value)">
-
-        <button id="maker-play-btn" onclick="toggleMaker()">
-            <span>▶</span> Start Generation
-        </button>
     </div>
 
-    <!-- 左侧库 -->
+    <!-- UI Panels -->
     <div id="library-panel" class="glass-panel">
-        <div style="font-size:22px; font-weight:700; margin-bottom:15px;">Library</div>
-        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:15px;">Or use the Maker to generate music.</div>
+        <div class="panel-title">Library</div>
+        <label for="file-input" class="btn-upload">Import Music</label>
+        <input type="file" id="file-input" multiple accept="audio/*">
         <ul id="playlist"></ul>
     </div>
 
-    <!-- 底部播放器 -->
+    <div id="pomo-widget" class="glass-panel">
+        <svg class="pomo-svg">
+            <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="5"></circle>
+            <circle class="pomo-circle-fg" id="timer-ring" cx="30" cy="30" r="24" fill="none" stroke-width="5"></circle>
+        </svg>
+        <div>
+            <div style="font-size:12px; opacity:0.6; margin-bottom:4px;" id="timer-mode">Focus</div>
+            <div class="pomo-time" id="timer-display">25:00</div>
+            <div style="font-size:11px; color:var(--accent); cursor:pointer; margin-top:5px;" onclick="toggleTimer()">Start / Pause</div>
+        </div>
+    </div>
+
+    <div id="settings-panel" class="glass-panel">
+        <div class="ai-panel-header">
+            <div class="section-header" style="margin:0; color:var(--text-primary);">✨ AI Director</div>
+            <div class="ai-switch" id="ai-toggle" onclick="toggleAI()"></div>
+        </div>
+        <div class="ai-status" id="ai-status">AI ACTIVE</div>
+
+        <div class="section-header">Theme</div>
+        <div class="theme-grid" id="theme-grid"></div>
+
+        <div class="section-header">Geometry</div>
+        <div class="shape-grid" id="shape-grid"></div>
+
+        <div class="section-header" style="margin-top:20px">Effects</div>
+        <div style="margin-bottom:10px; font-size:12px; display:flex; justify-content:space-between;"><span>Explosion</span><span id="val-exp">0.5</span></div>
+        <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="setParam('explode', this.value)">
+    </div>
+
     <div id="player-bar" class="glass-panel">
         <div style="display:flex; align-items:center; gap:16px;">
             <div class="art-box">🎵</div>
             <div>
-                <div style="font-size:14px; font-weight:600;" id="now-title">Ready</div>
-                <div style="font-size:10px; color:var(--accent); font-family:monospace;" id="now-source">WAITING...</div>
+                <div style="font-size:14px; font-weight:600;" id="now-title">Select Music</div>
+                <div style="font-size:10px; color:var(--accent); font-family:monospace;" id="now-dna">waiting...</div>
             </div>
+        </div>
+        <div class="controls">
+            <div onclick="prevSong()" style="cursor:pointer">⏮</div>
+            <div class="play-btn" onclick="togglePlay()" id="play-btn-ui">▶</div>
+            <div onclick="nextSong()" style="cursor:pointer">⏭</div>
         </div>
     </div>
 
@@ -194,139 +238,69 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        // ================= SYNTH ENGINE (WEB AUDIO API) =================
-        const AudioEngine = {
-            ctx: null,
-            masterGain: null,
-            analyser: null,
-            isPlaying: false,
-            timer: null,
-            tempo: 200, // ms per beat
-            scale: [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66, 329.63, 392.00, 440.00], // C Pentatonic
-            config: { inst: 'pad', rhythm: 'flow', intensity: 0.5 },
-
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    this.masterGain = this.ctx.createGain();
-                    this.masterGain.gain.value = 0.3;
-                    this.analyser = this.ctx.createAnalyser();
-                    this.analyser.fftSize = 512;
-                    this.masterGain.connect(this.analyser);
-                    this.analyser.connect(this.ctx.destination);
-                }
-                if (this.ctx.state === 'suspended') this.ctx.resume();
-            },
-
-            playNote(freq, dur) {
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                
-                // Instrument Logic
-                switch(this.config.inst) {
-                    case 'pad':
-                        osc.type = 'sine';
-                        gain.gain.setValueAtTime(0, this.ctx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.3, this.ctx.currentTime + dur/2);
-                        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + dur);
-                        break;
-                    case 'bass':
-                        osc.type = 'sawtooth';
-                        osc.frequency.value = freq / 2; // Octave down
-                        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-                        break;
-                    case 'pluck':
-                        osc.type = 'triangle';
-                        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
-                        break;
-                    case 'lead':
-                        osc.type = 'square';
-                        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + 0.1);
-                        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
-                        break;
-                }
-
-                osc.connect(gain);
-                gain.connect(this.masterGain);
-                osc.start();
-                osc.stop(this.ctx.currentTime + dur + 1);
-            },
-
-            step() {
-                // Generative Sequencer Logic
-                let chance = 0.5;
-                if (this.config.rhythm === 'flow') chance = 0.3;
-                if (this.config.rhythm === 'chaos') chance = 0.8;
-
-                if (Math.random() < chance * (1 + this.config.intensity)) {
-                    // Pick random note from scale
-                    const note = this.scale[Math.floor(Math.random() * this.scale.length)];
-                    // Duration based on intensity
-                    const dur = (2.0 - this.config.intensity) * (this.tempo / 1000);
-                    this.playNote(note, dur);
-                    
-                    // Visual feedback hack
-                    material.uniforms.uBeat.value = 0.5 + this.config.intensity; // Force visual pulse
-                }
-            },
-
-            start() {
-                this.init();
-                this.isPlaying = true;
-                this.timer = setInterval(() => this.step(), this.tempo);
-                document.getElementById('maker-play-btn').classList.add('playing');
-                document.getElementById('maker-play-btn').innerHTML = `<span>⏸</span> Generating...`;
-                document.getElementById('now-title').innerText = "AI Generating";
-                document.getElementById('now-source').innerText = `INST: ${this.config.inst.toUpperCase()}`;
-            },
-
-            stop() {
-                this.isPlaying = false;
-                clearInterval(this.timer);
-                document.getElementById('maker-play-btn').classList.remove('playing');
-                document.getElementById('maker-play-btn').innerHTML = `<span>▶</span> Start Generation`;
-                document.getElementById('now-title').innerText = "Paused";
-                // Reset visuals
-                material.uniforms.uBeat.value = 0;
-            }
+        // ================= LOGIC & DATA =================
+        const MOODS = {
+            energy: { title: "High Energy", icon: "⚡️", tone: "KINETIC • POWER", quotes: ["Energy flows where intention goes.", "Turn chaos into stardust."], tips: ["Great for sprints.", "Let rhythm drive you."] },
+            calm: { title: "Serenity", icon: "🍃", tone: "ETHEREAL • FLOW", quotes: ["Quiet the mind, and the soul speaks.", "Breathe in the future."], tips: ["Sync with the beat.", "Release tension."] },
+            melancholy: { title: "Reflection", icon: "🌧", tone: "DEEP • SOUL", quotes: ["Stars can't shine without darkness.", "Solitude is creativity."], tips: ["Allow thoughts to wander.", "Focus inward."] },
+            joy: { title: "Flow State", icon: "✨", tone: "VIBRANT • LIGHT", quotes: ["Creativity is intelligence having fun.", "Flow like water."], tips: ["Capture ideas now.", "You are in the zone."] }
         };
-
-        // ================= CONFIG & VISUALS =================
-        const CONFIG = { count: 30000, explode: 0.5 };
+        const THEMES = {
+            cyberpunk: { bg: '#050505', c1: '#00f3ff', c2: '#ff00ff', accent: '#00f3ff' },
+            sunrise:   { bg: '#10002b', c1: '#4facfe', c2: '#f093fb', accent: '#ff9f0a' },
+            sunset:    { bg: '#1a0505', c1: '#ff0844', c2: '#ffb199', accent: '#ff375f' },
+            pastel:    { bg: '#151515', c1: '#84fab0', c2: '#8fd3f4', accent: '#70e1f5' },
+            bw:        { bg: '#000000', c1: '#ffffff', c2: '#444444', accent: '#ffffff' }
+        };
         const SHAPES = [
-            { id: 'galaxy', name: 'Galaxy', icon: '🌌' },
-            { id: 'dna', name: 'DNA', icon: '🧬' },
-            { id: 'sphere', name: 'Sphere', icon: '🔮' },
-            { id: 'grid', name: 'Grid', icon: '🕸️' }
+            { id: 'galaxy', name: 'Galaxy', icon: '🌌' }, { id: 'dna', name: 'DNA', icon: '🧬' },
+            { id: 'sphere', name: 'Sphere', icon: '🔮' }, { id: 'heart', name: 'Heart', icon: '❤️' },
+            { id: 'lorenz', name: 'Chaos', icon: '🦋' }, { id: 'grid', name: 'Grid', icon: '🕸️' }
         ];
+        const PRELOADED = [
+            { name: "Cyberpunk Beats", url: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3", type: "preset" },
+            { name: "Chill Lofi", url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3", type: "preset" },
+            { name: "Cinematic Ambient", url: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3", type: "preset" }
+        ];
+        
+        const STATE = { playlist: [...PRELOADED], currIdx: -1, isPlaying: false, audioCtx: null, analyser: null, source: null, dnaSeed: 12345, isAI: true, lastAISwitch: 0, currentMood: null, immersive: false };
+        const CONFIG = { count: 32000, explode: 0.5, pulse: 1.5, speed: 0.5 };
 
+        // ================= THREE.JS =================
         let scene, camera, renderer, particles, material, geometry, controls, clock;
 
         function init() {
             const container = document.getElementById('canvas-container');
             clock = new THREE.Clock();
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x050505, 0.002);
+            scene.fog = new THREE.FogExp2(THEMES.cyberpunk.bg, 0.002);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 3000);
             camera.position.set(0, 50, 450);
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x050505);
+            renderer.setClearColor(THEMES.cyberpunk.bg);
             container.appendChild(renderer.domElement);
             controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 0.5;
+            controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = CONFIG.speed;
             
             initParticles();
             initUI();
+            renderPlaylist();
+            applyTheme('cyberpunk');
             
+            // Auto active AI UI
+            document.getElementById('ai-toggle').classList.add('active');
+            document.getElementById('ai-status').classList.add('visible');
+
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth/window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
+            window.addEventListener('keydown', (e) => {
+                if(e.key === 'Tab') { e.preventDefault(); toggleImmersive(); }
+            });
+
             animate();
         }
 
@@ -335,18 +309,18 @@
             const pos = new Float32Array(CONFIG.count*3);
             const target = new Float32Array(CONFIG.count*3);
             const colors = new Float32Array(CONFIG.count*3);
-            const shape = getShapeData('galaxy');
+            const shape = getShapeData('galaxy', 0);
             for(let i=0; i<CONFIG.count; i++) {
                 pos[i*3]=shape[i*3]; pos[i*3+1]=shape[i*3+1]; pos[i*3+2]=shape[i*3+2];
                 target[i*3]=pos[i*3]; target[i*3+1]=pos[i*3+1]; target[i*3+2]=pos[i*3+2];
-                colors[i*3]=0.1; colors[i*3+1]=0.5; colors[i*3+2]=1.0;
+                colors[i*3]=1; colors[i*3+1]=1; colors[i*3+2]=1;
             }
             geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
             geometry.setAttribute('targetPosition', new THREE.BufferAttribute(target, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
             const vShader = `
-                uniform float uTime; uniform float uMix; uniform float uBeat; uniform float uExplode;
+                uniform float uTime; uniform float uMix; uniform float uBeat; uniform float uExplode; uniform float uPulse;
                 attribute vec3 targetPosition; attribute vec3 color; varying vec3 vColor; varying float vAlpha;
                 void main() {
                     vColor = color;
@@ -355,7 +329,7 @@
                     pos += normalize(pos) * (n*20.0 + uBeat*uExplode*60.0);
                     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
                     gl_Position = projectionMatrix * mvPos;
-                    gl_PointSize = 2.0 * (1.0 + uBeat * 2.0) * (300.0 / -mvPos.z);
+                    gl_PointSize = 2.5 * (1.0 + uBeat * uPulse) * (300.0 / -mvPos.z);
                     vAlpha = smoothstep(1000.0, 100.0, -mvPos.z);
                 }
             `;
@@ -364,25 +338,93 @@
                 void main() {
                     vec2 uv = gl_PointCoord.xy - 0.5;
                     if (length(uv) > 0.5) discard;
-                    vec3 c = mix(vColor, vec3(1.0), uBeat * 0.5);
-                    gl_FragColor = vec4(c, vAlpha);
+                    vec3 c = mix(vColor, vec3(1.0), uBeat * 0.4);
+                    gl_FragColor = vec4(c, vAlpha * pow(1.0 - length(uv)*2.0, 2.0));
                 }
             `;
             material = new THREE.ShaderMaterial({
-                uniforms: { uTime:{value:0}, uMix:{value:0}, uBeat:{value:0}, uExplode:{value:CONFIG.explode} },
+                uniforms: { uTime:{value:0}, uMix:{value:0}, uBeat:{value:0}, uExplode:{value:CONFIG.explode}, uPulse:{value:CONFIG.pulse} },
                 vertexShader: vShader, fragmentShader: fShader, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
             });
             particles = new THREE.Points(geometry, material);
             scene.add(particles);
         }
 
-        function getShapeData(type) {
+        // ================= FEATURES =================
+        function toggleImmersive() {
+            STATE.immersive = !STATE.immersive;
+            document.body.classList.toggle('immersive');
+            // Toggle mood card text slightly
+        }
+
+        function showMoodCard(moodKey) {
+            if (STATE.currentMood === moodKey) return;
+            STATE.currentMood = moodKey;
+            const data = MOODS[moodKey];
+            const card = document.getElementById('mood-card');
+            const randQuote = data.quotes[Math.floor(Math.random() * data.quotes.length)];
+            const randTip = data.tips[Math.floor(Math.random() * data.tips.length)];
+
+            document.getElementById('card-icon').innerText = data.icon;
+            document.getElementById('card-title').innerText = data.title;
+            document.getElementById('card-tone').innerText = data.tone;
+            document.getElementById('card-quote').innerText = randQuote;
+            document.getElementById('card-tip').innerText = randTip;
+
+            card.classList.add('visible');
+            setTimeout(() => card.classList.remove('visible'), 8000);
+        }
+
+        function runAIDirector(data) {
+            if (!STATE.isAI) return;
+            const now = Date.now();
+            if (now - STATE.lastAISwitch < 6000) return;
+
+            let bass=0, total=0;
+            for(let i=0; i<data.length; i++) { const v=data[i]; total+=v; if(i<10) bass+=v; }
+            const avg = total/data.length;
+            const bassRatio = bass/(total||1);
+            
+            let detected = null;
+            if (avg > 50 && bassRatio > 0.05) { // Energy
+                if(STATE.currentMood !== 'energy') { morphTo('grid'); applyTheme('cyberpunk'); material.uniforms.uExplode.value = 1.2; detected = 'energy'; }
+            } else if (avg < 25) { // Calm
+                if(STATE.currentMood !== 'calm') { morphTo('sphere'); applyTheme('pastel'); material.uniforms.uExplode.value = 0.1; detected = 'calm'; }
+            } else if (bassRatio > 0.1) { // Deep
+                if(STATE.currentMood !== 'melancholy') { morphTo('heart'); applyTheme('sunset'); material.uniforms.uExplode.value = 0.4; detected = 'melancholy'; }
+            } else { // Joy
+                if(STATE.currentMood !== 'joy') { morphTo('galaxy'); applyTheme('sunrise'); material.uniforms.uExplode.value = 0.6; detected = 'joy'; }
+            }
+            if (detected) { STATE.lastAISwitch = now; showMoodCard(detected); }
+        }
+
+        // ================= HELPERS =================
+        function toggleAI() { STATE.isAI = !STATE.isAI; document.getElementById('ai-toggle').classList.toggle('active'); document.getElementById('ai-status').classList.toggle('visible'); }
+        
+        function applyTheme(key) {
+            const t = THEMES[key];
+            document.documentElement.style.setProperty('--accent', t.accent);
+            document.documentElement.style.setProperty('--accent-glow', t.accent+'66');
+            renderer.setClearColor(t.bg); scene.fog.color.set(t.bg);
+            const c1=new THREE.Color(t.c1), c2=new THREE.Color(t.c2);
+            const colors = geometry.attributes.color;
+            for(let i=0; i<CONFIG.count; i++) {
+                const r = Math.random(); colors.setXYZ(i, c1.r+(c2.r-c1.r)*r, c1.g+(c2.g-c1.g)*r, c1.b+(c2.b-c1.b)*r);
+            }
+            colors.needsUpdate = true;
+            document.querySelector('.art-box').style.background = `linear-gradient(135deg, ${t.c1}, ${t.c2})`;
+            document.querySelectorAll('.theme-btn').forEach(b => { b.classList.remove('active'); if(b.dataset.key === key) b.classList.add('active'); });
+        }
+
+        function getShapeData(type, seed) {
             const arr = new Float32Array(CONFIG.count*3); let idx=0;
             for(let i=0; i<CONFIG.count; i++) {
                 let x,y,z, u=Math.random()*Math.PI*2, v=Math.random()*Math.PI, r=150;
                 if(type==='galaxy'){ const a=Math.random()*Math.PI*2,d=Math.random()*200; x=Math.cos(a+d*0.05)*d; y=(Math.random()-0.5)*20; z=Math.sin(a+d*0.05)*d; }
                 else if(type==='dna'){ x=Math.cos(u*5)*60; z=Math.sin(u*5)*60; y=(u-Math.PI*5)*20; if(i%2==0)x+=20; }
+                else if(type==='heart'){ x=(Math.random()-0.5)*300; y=(Math.random()-0.5)*300; z=(Math.random()-0.5)*300; if(Math.abs(x)+Math.abs(y)+Math.abs(z)>200){x/=2;y/=2;z/=2;} }
                 else if(type==='grid'){ x=(Math.random()-0.5)*400; z=(Math.random()-0.5)*400; y=Math.floor((Math.random()-0.5)*5)*40; }
+                else if(type==='lorenz'){ x=r*Math.sin(v)*Math.cos(u)*0.8; y=r*Math.sin(v)*Math.sin(u)*0.8; z=r*Math.cos(v); }
                 else { x=r*Math.sin(v)*Math.cos(u); y=r*Math.sin(v)*Math.sin(u); z=r*Math.cos(v); }
                 arr[idx++]=x; arr[idx++]=y; arr[idx++]=z;
             }
@@ -392,7 +434,7 @@
         function morphTo(type) {
             geometry.attributes.position.array.set(geometry.attributes.targetPosition.array);
             geometry.attributes.position.needsUpdate = true;
-            geometry.attributes.targetPosition.array.set(getShapeData(type));
+            geometry.attributes.targetPosition.array.set(getShapeData(type, STATE.dnaSeed));
             geometry.attributes.targetPosition.needsUpdate = true;
             material.uniforms.uMix.value = 0;
             const start = clock.getElapsedTime();
@@ -405,84 +447,72 @@
             document.querySelectorAll('.shape-btn').forEach(b => { b.classList.remove('active'); if(b.dataset.id === type) b.classList.add('active'); });
         }
 
-        // ================= UI INTERACTION =================
-        function initUI() {
-            const sGrid = document.getElementById('shape-grid');
-            SHAPES.forEach((s,i) => {
-                const b = document.createElement('div'); b.className=`shape-btn ${i===0?'active':''}`; b.dataset.id=s.id;
-                b.innerHTML = `<div style="font-size:20px">${s.icon}</div><span>${s.name}</span>`;
-                b.onclick = () => morphTo(s.id); sGrid.appendChild(b);
-            });
+        // ================= PLAYER =================
+        function playSong(idx) {
+            STATE.currIdx = idx; renderPlaylist();
+            const t = STATE.playlist[idx];
+            document.getElementById('now-title').innerText = t.name.replace(/\.[^/.]+$/, "");
+            let h=0; for(let i=0;i<t.name.length;i++) h=((h<<5)-h)+t.name.charCodeAt(i);
+            STATE.dnaSeed=Math.abs(h);
+            document.getElementById('now-dna').innerText = "DNA: "+STATE.dnaSeed.toString(16).toUpperCase();
             
-            // Dummy Playlist
-            const pl = document.getElementById('playlist');
-            ['Local Files', 'Create with Maker'].forEach(n => {
-                const li = document.createElement('li'); li.innerHTML = n; 
-                li.style.padding='10px'; li.style.opacity='0.6'; li.style.borderBottom='1px solid rgba(255,255,255,0.1)';
-                pl.appendChild(li);
+            if(!STATE.audioCtx) STATE.audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+            if(STATE.audioCtx.state==='suspended') STATE.audioCtx.resume();
+            if(STATE.source) STATE.source.stop();
+
+            const play = b => {
+                STATE.source=STATE.audioCtx.createBufferSource(); STATE.source.buffer=b;
+                if(!STATE.analyser){STATE.analyser=STATE.audioCtx.createAnalyser(); STATE.analyser.fftSize=512;}
+                STATE.source.connect(STATE.analyser); STATE.analyser.connect(STATE.audioCtx.destination);
+                STATE.source.start(0); STATE.isPlaying=true; updatePlayBtn();
+                STATE.lastAISwitch = 0; // force AI update
+                STATE.source.onended=()=>playSong((STATE.currIdx+1)%STATE.playlist.length);
+            };
+            if(t.type==='preset') fetch(t.url).then(r=>r.arrayBuffer()).then(b=>STATE.audioCtx.decodeAudioData(b)).then(play);
+            else { const r=new FileReader(); r.onload=e=>STATE.audioCtx.decodeAudioData(e.target.result).then(play); r.readAsArrayBuffer(t); }
+        }
+
+        function initUI() {
+            const tGrid = document.getElementById('theme-grid');
+            Object.keys(THEMES).forEach(k => { const b = document.createElement('div'); b.className='theme-btn'; b.dataset.key=k; b.style.background = THEMES[k].c1; b.onclick=()=>applyTheme(k); tGrid.appendChild(b); });
+            const sGrid = document.getElementById('shape-grid');
+            SHAPES.forEach((s,i) => { const b = document.createElement('div'); b.className=`shape-btn ${i===0?'active':''}`; b.dataset.id=s.id; b.innerHTML = `<div style="font-size:20px">${s.icon}</div><span>${s.name}</span>`; b.onclick = () => morphTo(s.id); sGrid.appendChild(b); });
+        }
+        function renderPlaylist() {
+            const ul=document.getElementById('playlist'); ul.innerHTML=''; const h1=document.createElement('div'); h1.className='section-header'; h1.innerText='PRE-LOADED'; ul.appendChild(h1);
+            STATE.playlist.forEach((t,i)=>{
+                if(i===PRELOADED.length){const h2=document.createElement('div'); h2.className='section-header'; h2.innerText='LOCAL'; ul.appendChild(h2);}
+                const li=document.createElement('li'); li.className=`track-item ${i===STATE.currIdx?'active':''}`; li.innerHTML=`<div style="font-size:14px; margin-right:10px">${t.type==='preset'?'💿':'📂'}</div><div class="t-name">${t.name.replace(/\.[^/.]+$/, "")}</div>`;
+                li.onclick=()=>playSong(i); ul.appendChild(li);
             });
         }
+        document.getElementById('file-input').onchange = e => { STATE.playlist.push(...e.target.files); renderPlaylist(); };
+        window.togglePlay = () => { if(STATE.audioCtx){ STATE.audioCtx.state==='running'?STATE.audioCtx.suspend():STATE.audioCtx.resume(); STATE.isPlaying=!STATE.isPlaying; updatePlayBtn();} };
+        function updatePlayBtn() { document.getElementById('play-btn-ui').innerText = STATE.isPlaying ? '⏸' : '▶'; }
+        window.nextSong=()=>playSong((STATE.currIdx+1)%STATE.playlist.length); window.prevSong=()=>playSong((STATE.currIdx-1+STATE.playlist.length)%STATE.playlist.length);
+        window.setParam = (k,v) => { CONFIG[k]=parseFloat(v); if(k==='speed')controls.autoRotateSpeed=CONFIG.speed; else if(material){if(k==='explode')material.uniforms.uExplode.value=CONFIG.explode;} };
 
-        // MAKER CONTROLS
-        function switchMode(mode) {
-            const settings = document.getElementById('settings-panel');
-            const maker = document.getElementById('maker-panel');
-            const b1 = document.getElementById('btn-mode-settings');
-            const b2 = document.getElementById('btn-mode-maker');
-
-            if(mode === 'settings') {
-                settings.classList.remove('hidden'); maker.classList.add('hidden');
-                b1.classList.add('active'); b2.classList.remove('active');
-            } else {
-                settings.classList.add('hidden'); maker.classList.remove('hidden');
-                b1.classList.remove('active'); b2.classList.add('active');
-            }
+        // Pomo
+        let timerInt, timerTime=25*60;
+        function toggleTimer(){ 
+            if(timerInt){clearInterval(timerInt); timerInt=null;} else { timerInt=setInterval(()=>{ timerTime--; updateTimerUI(); if(timerTime<=0){alert('Done!');toggleTimer();} },1000); }
+        }
+        function updateTimerUI(){
+            const m=Math.floor(timerTime/60).toString().padStart(2,'0'), s=(timerTime%60).toString().padStart(2,'0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+            document.getElementById('timer-ring').style.strokeDashoffset = 151*(1-timerTime/(25*60));
         }
 
-        function setInst(type, btn) {
-            AudioEngine.config.inst = type;
-            document.querySelectorAll('.inst-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
-
-        function setRhythm(type, btn) {
-            AudioEngine.config.rhythm = type;
-            document.querySelectorAll('.rhythm-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
-
-        function setMakerIntensity(val) {
-            AudioEngine.config.intensity = parseFloat(val);
-            AudioEngine.tempo = 400 - (val * 300); // 0.1->370ms, 1.0->100ms
-            if(AudioEngine.isPlaying) {
-                clearInterval(AudioEngine.timer);
-                AudioEngine.timer = setInterval(() => AudioEngine.step(), AudioEngine.tempo);
-            }
-        }
-
-        function toggleMaker() {
-            if(AudioEngine.isPlaying) AudioEngine.stop(); else AudioEngine.start();
-        }
-
-        window.setParam = (k, v) => { if(material && k==='explode') material.uniforms.uExplode.value = parseFloat(v); };
-
-        // ================= LOOP =================
         function animate() {
             requestAnimationFrame(animate);
             material.uniforms.uTime.value = clock.getElapsedTime();
-            
-            // Visualizer Logic: If Synth is playing, get data from it
-            if(AudioEngine.isPlaying && AudioEngine.analyser) {
-                const data = new Uint8Array(AudioEngine.analyser.frequencyBinCount);
-                AudioEngine.analyser.getByteFrequencyData(data);
+            if(STATE.isPlaying && STATE.analyser) {
+                const data = new Uint8Array(STATE.analyser.frequencyBinCount);
+                STATE.analyser.getByteFrequencyData(data);
                 let sum=0; for(let i=0;i<50;i++) sum+=data[i];
-                // Smoothly update beat visual
-                material.uniforms.uBeat.value += (sum/50/255 - material.uniforms.uBeat.value)*0.2;
-            } else {
-                 // Decay beat if stopped
-                 material.uniforms.uBeat.value *= 0.95;
+                material.uniforms.uBeat.value += (sum/50/255 - material.uniforms.uBeat.value)*0.3;
+                runAIDirector(data);
             }
-
             controls.update(); renderer.render(scene, camera);
         }
         init();
