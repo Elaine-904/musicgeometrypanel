@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Geometry Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Cinzel:wght@400&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #00f3ff; --glass: rgba(10, 10, 15, 0.8); }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Orbitron', sans-serif; color: white; user-select: none; }
+        
+        #ui-container { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .panel { pointer-events: auto; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); padding: 15px; }
+        
+        #playlist-panel { position: absolute; top: 20px; left: 20px; width: 250px; border-left: 2px solid var(--primary); }
+        .btn { background: rgba(255,255,255,0.1); border: 1px solid var(--primary); color: var(--primary); padding: 5px 10px; cursor: pointer; width: 100%; margin-bottom: 10px; font-family: inherit; }
+        .btn:hover { background: var(--primary); color: #000; }
+        
+        #playlist { list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto; }
+        #playlist li { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; font-size: 12px; }
+        #playlist li.active { color: var(--primary); text-shadow: 0 0 5px var(--primary); }
+
+        #now-playing { position: absolute; bottom: 30px; width: 100%; text-align: center; text-shadow: 0 2px 10px black; pointer-events: none; }
+        #shape-name { font-size: 12px; color: var(--primary); letter-spacing: 3px; margin-top: 5px; text-transform: uppercase; }
+
+        /* Lil-GUI Customization */
+        .lil-gui { --name-width: 40%; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <div id="playlist-panel" class="panel">
+            <label for="file-input" class="btn">UPLOAD MUSIC</label>
+            <input type="file" id="file-input" multiple accept="audio/*" style="display:none;">
+            <ul id="playlist"></ul>
+        </div>
+        <div id="now-playing">
+            <div style="font-size: 24px;" id="song-title">SYSTEM READY</div>
+            <div id="shape-name">SHAPE: AUDIO DNA</div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17.0/dist/lil-gui.umd.min.js"></script>
+
+    <script>
+        // ================= CONFIG & STATE =================
+        const PARAMS = {
+            shape: 'Audio DNA', // Default Shape
+            
+            // Visual Params
+            particleSize: 2.0,
+            animSpeed: 1.0,
+            noiseStrength: 0.5,
+            
+            // Audio Params
+            beatPulse: 1.5,
+            explosion: 0.5,
+            colorReact: 0.5,
+            
+            theme: 'Cyberpunk'
+        };
+
+        const SHAPES_LIST = [
+            'Audio DNA', 
+            'Galaxy Spiral', 
+            'Lorenz Attractor', 
+            'Menger Sponge', 
+            'Mobius Strip', 
+            'Klein Bottle', 
+            'Descartes Heart', 
+            'Sierpinski Fractal',
+            'Penrose Triangle',
+            'Cyber Grid'
+        ];
+
+        const STATE = {
+            playlist: [],
+            currIndex: -1,
+            audioCtx: null,
+            analyser: null,
+            source: null,
+            dnaSeed: 12345,
+            isPlaying: false
+        };
+
+        let scene, camera, renderer, particles, material, geometry, controls, clock;
+        const PARTICLE_COUNT = 35000;
+
+        // ================= THREE.JS INIT =================
+        function init() {
+            const container = document.getElementById('canvas-container');
+            clock = new THREE.Clock();
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050505, 0.002);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 4000);
+            camera.position.set(0, 50, 450);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.5;
+
+            initParticles();
+            initGUI();
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        // ================= PARTICLE SYSTEM =================
+        function initParticles() {
+            geometry = new THREE.BufferGeometry();
+            
+            const pos = new Float32Array(PARTICLE_COUNT * 3);
+            const target = new Float32Array(PARTICLE_COUNT * 3);
+            const colors = new Float32Array(PARTICLE_COUNT * 3);
+            const randoms = new Float32Array(PARTICLE_COUNT);
+
+            // Initial Shape
+            const shapeData = generateShape('Audio DNA');
+            
+            for(let i=0; i<PARTICLE_COUNT; i++) {
+                pos[i*3] = shapeData[i*3];
+                pos[i*3+1] = shapeData[i*3+1];
+                pos[i*3+2] = shapeData[i*3+2];
+                target[i*3] = pos[i*3]; target[i*3+1] = pos[i*3+1]; target[i*3+2] = pos[i*3+2];
+                
+                randoms[i] = Math.random();
+                
+                // Cyberpunk Colors Init
+                const c1 = new THREE.Color(0x00f3ff);
+                const c2 = new THREE.Color(0xff00ff);
+                const r = Math.random();
+                colors[i*3] = c1.r + (c2.r-c1.r)*r;
+                colors[i*3+1] = c1.g + (c2.g-c1.g)*r;
+                colors[i*3+2] = c1.b + (c2.b-c1.b)*r;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geometry.setAttribute('targetPosition', new THREE.BufferAttribute(target, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+
+            // Shader
+            const vShader = `
+                uniform float uTime;
+                uniform float uMix;
+                uniform float uBeat;
+                uniform float uNoiseStr;
+                uniform float uExplode;
+                uniform float uPulse;
+                uniform float uSize;
+
+                attribute vec3 targetPosition;
+                attribute vec3 color;
+                attribute float aRandom;
+
+                varying vec3 vColor;
+                varying float vAlpha;
+
+                // 3D Noise function
+                float hash(float n) { return fract(sin(n) * 43758.5453123); }
+                float noise(vec3 x) {
+                    vec3 p = floor(x);
+                    vec3 f = fract(x);
+                    f = f*f*(3.0-2.0*f);
+                    float n = p.x + p.y*57.0 + 113.0*p.z;
+                    return mix(mix(mix( hash(n+  0.0), hash(n+  1.0),f.x),
+                                   mix( hash(n+ 57.0), hash(n+ 58.0),f.x),f.y),
+                               mix(mix( hash(n+113.0), hash(n+114.0),f.x),
+                                   mix( hash(n+170.0), hash(n+171.0),f.x),f.y),f.z);
+                }
+
+                void main() {
+                    vColor = color;
+                    
+                    // Morphing
+                    vec3 pos = mix(position, targetPosition, uMix);
+                    
+                    // Audio & Noise Displacement
+                    float n = noise(pos * 0.02 + uTime * 0.5);
+                    vec3 noiseVec = normalize(pos) * n * (uNoiseStr * 20.0);
+                    vec3 explodeVec = normalize(pos) * (uBeat * uExplode * 60.0);
+                    
+                    vec3 finalPos = pos + noiseVec + explodeVec;
+                    vec4 mvPos = modelViewMatrix * vec4(finalPos, 1.0);
+                    gl_Position = projectionMatrix * mvPos;
+
+                    // Size Pulse
+                    float pulse = 1.0 + (uBeat * uPulse);
+                    gl_PointSize = uSize * pulse * (300.0 / -mvPos.z);
+                    
+                    vAlpha = smoothstep(1200.0, 100.0, -mvPos.z);
+                }
+            `;
+
+            const fShader = `
+                uniform float uBeat;
+                uniform float uColorReact;
+                varying vec3 vColor;
+                varying float vAlpha;
+
+                void main() {
+                    vec2 uv = gl_PointCoord.xy - 0.5;
+                    float dist = length(uv);
+                    if (dist > 0.5) discard;
+
+                    // Glow center
+                    float glow = 1.0 - dist * 2.0;
+                    glow = pow(glow, 2.0);
+
+                    // Beat flash (white mix)
+                    vec3 finalColor = mix(vColor, vec3(1.0), uBeat * uColorReact);
+
+                    gl_FragColor = vec4(finalColor, vAlpha * glow);
+                }
+            `;
+
+            material = new THREE.ShaderMaterial({
+                uniforms: {
+                    uTime: { value: 0 },
+                    uMix: { value: 0 },
+                    uBeat: { value: 0 },
+                    uNoiseStr: { value: PARAMS.noiseStrength },
+                    uExplode: { value: PARAMS.explosion },
+                    uPulse: { value: PARAMS.beatPulse },
+                    uSize: { value: PARAMS.particleSize },
+                    uColorReact: { value: PARAMS.colorReact }
+                },
+                vertexShader: vShader,
+                fragmentShader: fShader,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        // ================= MATH SHAPE GENERATOR =================
+        function generateShape(type) {
+            const pts = new Float32Array(PARTICLE_COUNT * 3);
+            let idx = 0;
+            const seed = STATE.dnaSeed;
+            
+            // Random generator based on seed
+            const rng = (s) => { var x = Math.sin(s++) * 10000; return x - Math.floor(x); };
+            
+            switch(type) {
+                case 'Galaxy Spiral':
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const r = Math.random() * 200;
+                        const spiral = r * 2.0 + angle; 
+                        // Barred Spiral logic
+                        const arms = 3;
+                        const armOffset = (i % arms) * (Math.PI * 2 / arms);
+                        
+                        pts[idx++] = Math.cos(angle * 2 + armOffset) * r;
+                        pts[idx++] = (Math.random()-0.5) * (200-r)*0.2; // Flat disc
+                        pts[idx++] = Math.sin(angle * 2 + armOffset) * r;
+                    }
+                    break;
+
+                case 'Lorenz Attractor':
+                    let x=0.1, y=0, z=0;
+                    const dt = 0.006;
+                    const sigma=10, rho=28, beta=8/3;
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        let dx = sigma * (y - x) * dt;
+                        let dy = (x * (rho - z) - y) * dt;
+                        let dz = (x * y - beta * z) * dt;
+                        x+=dx; y+=dy; z+=dz;
+                        pts[idx++] = x * 6;
+                        pts[idx++] = y * 6;
+                        pts[idx++] = (z - 25) * 6;
+                        // Reset randomly to create volume not just line
+                        if (i % 100 === 0) {
+                            x = (Math.random()-0.5)*20;
+                            y = (Math.random()-0.5)*20;
+                            z = (Math.random()-0.5)*20 + 25;
+                        }
+                    }
+                    break;
+
+                case 'Mobius Strip':
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        const u = Math.random() * Math.PI * 2;
+                        const v = (Math.random() - 0.5) * 60; // Width
+                        const r = 100;
+                        pts[idx++] = (r + v * Math.cos(u/2)) * Math.cos(u);
+                        pts[idx++] = (r + v * Math.cos(u/2)) * Math.sin(u);
+                        pts[idx++] = v * Math.sin(u/2);
+                    }
+                    break;
+
+                case 'Descartes Heart':
+                    let count = 0;
+                    while(count < PARTICLE_COUNT) {
+                        const x = (Math.random() - 0.5) * 3;
+                        const y = (Math.random() - 0.5) * 3;
+                        const z = (Math.random() - 0.5) * 3;
+                        // Implicit formula
+                        const a = x*x + 2.25*y*y + z*z - 1;
+                        if (a*a*a - x*x*z*z*z - 0.1125*y*y*z*z*z <= 0) {
+                            pts[idx++] = x * 100;
+                            pts[idx++] = z * 100; // Rotate to stand up
+                            pts[idx++] = y * 100;
+                            count++;
+                        }
+                    }
+                    break;
+
+                case 'Klein Bottle':
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        const u = Math.random() * Math.PI;
+                        const v = Math.random() * Math.PI * 2;
+                        const r = 40; 
+                        // Complex parametric for 'Figure-8' Klein Bottle
+                        const c = Math.cos(u), s = Math.sin(u);
+                        const cosv = Math.cos(v), sinv = Math.sin(v);
+                        
+                        // Parametric eq for Klein Bottle
+                        pts[idx++] = -2/15 * c * (3*cosv - 30*s + 90*Math.pow(c,4)*s - 60*Math.pow(c,6)*s + 5*c*cosv*sinv) * 4;
+                        pts[idx++] = -1/15 * s * (3*cosv - 3*Math.pow(c,2)*cosv - 48*Math.pow(c,4)*cosv + 48*Math.pow(c,6)*cosv - 60*s + 5*c*cosv*sinv - 5*Math.pow(c,3)*cosv*sinv - 80*Math.pow(c,5)*cosv*sinv + 80*Math.pow(c,7)*cosv*sinv) * 4;
+                        pts[idx++] = 2/15 * (3 + 5*c*sinv) * sinv * 20; 
+                    }
+                    break;
+
+                case 'Menger Sponge':
+                    // Probabilistic approach (Fake fractal look for point cloud)
+                    // We generate points in a cube, and reject them if they fall in the "middle third" cross
+                    let mCount = 0;
+                    const size = 250;
+                    while(mCount < PARTICLE_COUNT) {
+                        let x = Math.random(), y = Math.random(), z = Math.random();
+                        // Fractal Iteration check (3 levels deep)
+                        let valid = true;
+                        for(let d=1; d<=3; d++) {
+                            const div = Math.pow(3, d);
+                            // Check if coords are in the middle third modulo
+                            const cx = Math.floor(x * div) % 3 === 1;
+                            const cy = Math.floor(y * div) % 3 === 1;
+                            const cz = Math.floor(z * div) % 3 === 1;
+                            if ((cx && cy) || (cy && cz) || (cx && cz)) {
+                                valid = false; break;
+                            }
+                        }
+                        if (valid) {
+                            pts[idx++] = (x - 0.5) * size;
+                            pts[idx++] = (y - 0.5) * size;
+                            pts[idx++] = (z - 0.5) * size;
+                            mCount++;
+                        }
+                    }
+                    break;
+
+                case 'Sierpinski Fractal':
+                    // Chaos Game Algorithm on Tetrahedron
+                    const vertices = [
+                        new THREE.Vector3(0, 150, 0),
+                        new THREE.Vector3(140, -100, 140),
+                        new THREE.Vector3(-140, -100, 140),
+                        new THREE.Vector3(0, -100, -140)
+                    ];
+                    let curr = new THREE.Vector3(0,0,0);
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        const targetV = vertices[Math.floor(Math.random() * 4)];
+                        curr.add(targetV).multiplyScalar(0.5); // Move halfway
+                        pts[idx++] = curr.x;
+                        pts[idx++] = curr.y;
+                        pts[idx++] = curr.z;
+                    }
+                    break;
+
+                case 'Penrose Triangle':
+                    // Approximated as 3 bars in 3D perspective
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        const section = Math.random();
+                        const len = 200, thick = 30;
+                        const t = (Math.random() - 0.5) * thick;
+                        const l = (Math.random() - 0.5) * len;
+                        
+                        if(section < 0.33) { // Bar 1
+                            pts[idx++] = l; pts[idx++] = len/2; pts[idx++] = t;
+                        } else if(section < 0.66) { // Bar 2
+                            pts[idx++] = len/2 + t; pts[idx++] = l; pts[idx++] = len/2 - l*0.5; // Tilted perspective
+                        } else { // Bar 3
+                            pts[idx++] = t; pts[idx++] = -len/2; pts[idx++] = l;
+                        }
+                    }
+                    break;
+                    
+                case 'Cyber Grid':
+                    const gridSize = 300;
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        const r = Math.random();
+                        if (r < 0.5) {
+                            // Floor
+                            pts[idx++] = (Math.random()-0.5) * gridSize * 2;
+                            pts[idx++] = -100 + (Math.random()) * 10; // Slight volume
+                            pts[idx++] = (Math.random()-0.5) * gridSize * 2;
+                        } else {
+                            // Vertical Data rain
+                            pts[idx++] = (Math.floor((Math.random()-0.5)*20) * 20); // Grid lock
+                            pts[idx++] = (Math.random()-0.5) * gridSize;
+                            pts[idx++] = (Math.floor((Math.random()-0.5)*20) * 20);
+                        }
+                    }
+                    break;
+
+                case 'Audio DNA':
+                default:
+                    // DNA Double Helix
+                    const pA = rng(seed)*5+1, pB = rng(seed+1)*5+1;
+                    for(let i=0; i<PARTICLE_COUNT; i++) {
+                        const u = Math.random() * Math.PI * 8; // Long strands
+                        const v = Math.random() * Math.PI;
+                        const radius = 60;
+                        
+                        // Helix 1
+                        if (i % 2 === 0) {
+                            pts[idx++] = Math.cos(u) * radius;
+                            pts[idx++] = (u - Math.PI*4) * 20; // Height spread
+                            pts[idx++] = Math.sin(u) * radius;
+                        } else {
+                            // Helix 2 (offset)
+                            pts[idx++] = Math.cos(u + Math.PI) * radius;
+                            pts[idx++] = (u - Math.PI*4) * 20;
+                            pts[idx++] = Math.sin(u + Math.PI) * radius;
+                        }
+                        // Add jitter
+                        pts[idx-3] += (Math.random()-0.5)*20;
+                        pts[idx-2] += (Math.random()-0.5)*20;
+                        pts[idx-1] += (Math.random()-0.5)*20;
+                    }
+                    break;
+            }
+            return pts;
+        }
+
+        function changeShape(type) {
+            PARAMS.shape = type;
+            document.getElementById('shape-name').innerText = `SHAPE: ${type}`;
+            
+            // 1. Get new positions
+            const newPos = generateShape(type);
+            
+            // 2. Lock current visual state to 'position' attribute (start point)
+            const posAttr = geometry.attributes.position;
+            const targetAttr = geometry.attributes.targetPosition;
+            
+            // For smooth transition, start from current visual state is hard in simple shader mix
+            // Strategy: We reset uMix to 0. 
+            // We copy target (which is where we are) to position.
+            if (material.uniforms.uMix.value > 0.5) {
+                posAttr.array.set(targetAttr.array);
+            }
+            posAttr.needsUpdate = true;
+
+            // 3. Set new target
+            targetAttr.array.set(newPos);
+            targetAttr.needsUpdate = true;
+
+            // 4. Animate uMix 0 -> 1
+            material.uniforms.uMix.value = 0;
+            const start = clock.getElapsedTime();
+            const duration = 2.0;
+
+            const anim = () => {
+                const now = clock.getElapsedTime();
+                const pct = (now - start) / duration;
+                if (pct <= 1) {
+                    // Ease out cubic
+                    material.uniforms.uMix.value = 1 - Math.pow(1 - pct, 3);
+                    requestAnimationFrame(anim);
+                } else {
+                    material.uniforms.uMix.value = 1;
+                }
+            };
+            anim();
+        }
+
+        // ================= GUI & AUDIO =================
+        function initGUI() {
+            const gui = new lil.GUI({ title: 'VISUALIZER CORE' });
+
+            // Geometry Folder
+            const fGeo = gui.addFolder('GEOMETRY MENU');
+            fGeo.add(PARAMS, 'shape', SHAPES_LIST).name('Select Shape').onChange(changeShape);
+            fGeo.add(PARAMS, 'particleSize', 0.5, 5).name('Particle Size').onChange(v => material.uniforms.uSize.value = v);
+            fGeo.add(PARAMS, 'noiseStrength', 0, 2).name('Fractal Noise').onChange(v => material.uniforms.uNoiseStr.value = v);
+
+            // Audio Folder
+            const fAudio = gui.addFolder('AUDIO RESPONSE');
+            fAudio.add(PARAMS, 'beatPulse', 0, 3).name('Beat Pulse').onChange(v => material.uniforms.uPulse.value = v);
+            fAudio.add(PARAMS, 'explosion', 0, 2).name('Explosion').onChange(v => material.uniforms.uExplode.value = v);
+            fAudio.add(PARAMS, 'colorReact', 0, 1).name('Color Flash').onChange(v => material.uniforms.uColorReact.value = v);
+
+            fGeo.open();
+        }
+
+        // Playlist & Audio Logic
+        document.getElementById('file-input').onchange = e => {
+            const files = [...e.target.files];
+            STATE.playlist.push(...files);
+            renderPlaylist();
+            playSong(STATE.playlist.length - files.length);
+        };
+
+        function renderPlaylist() {
+            const list = document.getElementById('playlist');
+            list.innerHTML = '';
+            STATE.playlist.forEach((f, i) => {
+                const li = document.createElement('li');
+                li.innerText = f.name;
+                li.onclick = () => playSong(i);
+                list.appendChild(li);
+            });
+        }
+
+        function playSong(idx) {
+            STATE.currIndex = idx;
+            const file = STATE.playlist[idx];
+            document.querySelectorAll('#playlist li').forEach((li, i) => li.className = i===idx ? 'active' : '');
+            document.getElementById('song-title').innerText = file.name.split('.')[0];
+            
+            // Generate DNA hash
+            let hash = 0; for(let i=0;i<file.name.length;i++) hash = ((hash<<5)-hash)+file.name.charCodeAt(i);
+            STATE.dnaSeed = Math.abs(hash);
+            
+            // If currently in DNA mode, regenerate it
+            if(PARAMS.shape === 'Audio DNA') changeShape('Audio DNA');
+
+            if(!STATE.audioCtx) STATE.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const reader = new FileReader();
+            reader.onload = e => {
+                if(STATE.source) STATE.source.stop();
+                STATE.audioCtx.decodeAudioData(e.target.result, buffer => {
+                    STATE.source = STATE.audioCtx.createBufferSource();
+                    STATE.source.buffer = buffer;
+                    if(!STATE.analyser) { STATE.analyser = STATE.audioCtx.createAnalyser(); STATE.analyser.fftSize = 1024; }
+                    STATE.source.connect(STATE.analyser);
+                    STATE.analyser.connect(STATE.audioCtx.destination);
+                    STATE.source.start(0);
+                    STATE.source.onended = () => playSong(STATE.currIndex+1);
+                    STATE.isPlaying = true;
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            material.uniforms.uTime.value = clock.getElapsedTime();
+
+            if(STATE.isPlaying && STATE.analyser) {
+                const data = new Uint8Array(STATE.analyser.frequencyBinCount);
+                STATE.analyser.getByteFrequencyData(data);
+                let sum = 0; for(let i=0; i<40; i++) sum+=data[i];
+                const beat = sum / 40 / 255;
+                material.uniforms.uBeat.value += (beat - material.uniforms.uBeat.value) * 0.3;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
