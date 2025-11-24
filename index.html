@@ -3,366 +3,313 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosmic Flow | Apple Style</title>
+    <title>Cosmic Flow | Focus & Music</title>
     
     <style>
-        /* ================= 核心设计系统 (Apple Style System) ================= */
+        /* ================= 设计系统 (Apple Design System) ================= */
         :root {
-            --glass-bg: rgba(20, 20, 25, 0.65);
+            --glass-bg: rgba(20, 20, 25, 0.7);
             --glass-border: rgba(255, 255, 255, 0.12);
-            --glass-highlight: rgba(255, 255, 255, 0.05);
+            --glass-highlight: rgba(255, 255, 255, 0.08);
             --accent: #0a84ff; /* iOS Blue */
-            --accent-glow: rgba(10, 132, 255, 0.4);
+            --accent-rest: #30d158; /* iOS Green for Rest */
             --text-primary: rgba(255, 255, 255, 0.95);
             --text-secondary: rgba(255, 255, 255, 0.55);
-            --ease-apple: cubic-bezier(0.25, 1, 0.5, 1); /* 丝滑弹簧曲线 */
+            --ease-apple: cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000;
+            margin: 0; overflow: hidden; background-color: #000;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-            color: var(--text-primary);
+            color: var(--text-primary); user-select: none;
             -webkit-font-smoothing: antialiased;
-            user-select: none;
         }
 
-        /* 3D 画布 */
-        #canvas-container {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            z-index: 1;
-        }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
 
-        /* ================= UI 组件基础类 ================= */
+        /* ================= 通用 UI 组件 ================= */
         .glass-panel {
             background: var(--glass-bg);
-            backdrop-filter: saturate(180%) blur(25px);
-            -webkit-backdrop-filter: saturate(180%) blur(25px);
+            backdrop-filter: saturate(180%) blur(30px);
+            -webkit-backdrop-filter: saturate(180%) blur(30px);
             border: 1px solid var(--glass-border);
             box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             border-radius: 24px;
-            transition: transform 0.3s var(--ease-apple), opacity 0.3s var(--ease-apple);
+            transition: all 0.3s var(--ease-apple);
         }
 
-        .icon-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
-            width: 40px; height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s var(--ease-apple);
+        .section-header {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-secondary); margin: 15px 0 8px 0; font-weight: 600;
+            padding-left: 5px;
         }
-        .icon-btn:hover { background: rgba(255, 255, 255, 0.25); transform: scale(1.05); }
-        .icon-btn:active { transform: scale(0.95); }
-        .icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
 
-        /* ================= 左侧：音乐库 (Library) ================= */
+        /* ================= 左侧：音乐库 ================= */
         #library-panel {
-            position: absolute;
-            top: 24px; left: 24px;
-            width: 280px;
-            height: calc(100vh - 140px); /* 留出底部空间 */
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            transform: translateX(0);
+            position: absolute; top: 24px; left: 24px; width: 260px;
+            height: calc(100vh - 140px); z-index: 10;
+            display: flex; flex-direction: column; padding: 20px;
         }
-        #library-panel.hidden { transform: translateX(-320px); opacity: 0; }
 
-        .panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px;
+        .panel-title { font-size: 20px; font-weight: 700; margin-bottom: 5px; }
+        .btn-upload {
+            font-size: 12px; color: var(--accent); background: rgba(10, 132, 255, 0.15);
+            padding: 8px 16px; border-radius: 18px; cursor: pointer; text-align: center;
+            margin-bottom: 15px; transition: 0.2s; font-weight: 600;
         }
-        .panel-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-        
-        #add-music-btn {
-            font-size: 12px; font-weight: 600;
-            color: var(--accent); background: rgba(10, 132, 255, 0.15);
-            padding: 6px 14px; border-radius: 20px;
-            cursor: pointer; transition: 0.2s;
-        }
-        #add-music-btn:hover { background: var(--accent); color: white; }
+        .btn-upload:hover { background: var(--accent); color: white; }
 
-        #playlist {
-            list-style: none; padding: 0; margin: 0;
-            overflow-y: auto; flex-grow: 1;
-        }
-        /* 隐藏滚动条但保留功能 */
-        #playlist::-webkit-scrollbar { width: 4px; }
-        #playlist::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        #playlist { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        #playlist::-webkit-scrollbar { width: 0; } /* Hide scrollbar */
 
         .track-item {
-            padding: 12px 14px;
-            border-radius: 12px;
-            margin-bottom: 6px;
-            cursor: pointer;
-            transition: 0.2s var(--ease-apple);
-            display: flex; align-items: center;
+            padding: 10px 12px; border-radius: 12px; margin-bottom: 4px; cursor: pointer;
+            display: flex; align-items: center; transition: 0.2s;
         }
         .track-item:hover { background: var(--glass-highlight); }
         .track-item.active { background: rgba(255,255,255,0.15); }
-        .track-item.active .track-name { color: var(--accent); font-weight: 600; }
+        .track-item.active .t-name { color: var(--accent); font-weight: 600; }
         
-        .track-icon { margin-right: 12px; opacity: 0.5; font-size: 12px; }
-        .track-info { display: flex; flex-direction: column; overflow: hidden; }
-        .track-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+        .t-icon { margin-right: 10px; font-size: 14px; opacity: 0.7; }
+        .t-info { display: flex; flex-direction: column; overflow: hidden; }
+        .t-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .t-meta { font-size: 10px; color: var(--text-secondary); }
 
-        /* ================= 右侧：控制中心 (Control Center) ================= */
+        /* ================= 右上：番茄钟 (New Widget) ================= */
+        #pomo-widget {
+            position: absolute; top: 24px; right: 24px; width: 280px;
+            padding: 20px; z-index: 11; display: flex; align-items: center; justify-content: space-between;
+        }
+        
+        /* 环形进度条容器 */
+        .pomo-ring-container {
+            position: relative; width: 70px; height: 70px;
+        }
+        .pomo-svg { transform: rotate(-90deg); width: 70px; height: 70px; }
+        .pomo-circle-bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 6; }
+        .pomo-circle-fg { 
+            fill: none; stroke: var(--accent); stroke-width: 6; 
+            stroke-dasharray: 176; stroke-dashoffset: 0; /* 2*PI*r, r=28 */
+            transition: stroke-dashoffset 1s linear, stroke 0.3s;
+            stroke-linecap: round;
+        }
+        
+        .pomo-controls { flex-grow: 1; padding-left: 20px; }
+        .pomo-time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+        .pomo-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;}
+        .pomo-btn-row { display: flex; gap: 10px; }
+        
+        .btn-pomo {
+            border: none; padding: 6px 12px; border-radius: 15px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-start { background: white; color: black; }
+        .btn-start:hover { background: #ddd; }
+        .btn-reset { background: rgba(255,255,255,0.1); color: white; }
+        .btn-reset:hover { background: rgba(255,255,255,0.2); }
+
+        /* ================= 右下：参数面板 ================= */
         #settings-panel {
-            position: absolute;
-            top: 24px; right: 24px;
-            width: 300px;
-            z-index: 10;
-            padding: 20px;
-            max-height: 85vh;
-            overflow-y: auto;
+            position: absolute; bottom: 120px; right: 24px; width: 280px;
+            max-height: 50vh; overflow-y: auto; z-index: 10; padding: 20px;
         }
         #settings-panel::-webkit-scrollbar { display: none; }
 
-        .section-title {
-            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-            color: var(--text-secondary); margin: 20px 0 10px 0; font-weight: 600;
-        }
-        .section-title:first-child { margin-top: 0; }
-
-        /* 几何形状网格 */
-        .shape-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-        }
+        /* Shape Grid */
+        .shape-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .shape-btn {
-            aspect-ratio: 1;
-            background: rgba(255,255,255,0.08);
-            border-radius: 14px;
-            border: 1px solid transparent;
-            cursor: pointer;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            transition: all 0.2s;
-            font-size: 20px;
+            aspect-ratio: 1; background: rgba(255,255,255,0.06); border-radius: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; border: 1px solid transparent;
         }
-        .shape-btn span { font-size: 9px; margin-top: 5px; opacity: 0.6; }
-        .shape-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.02); }
-        .shape-btn.active { 
-            background: var(--accent); 
-            box-shadow: 0 4px 15px var(--accent-glow);
-            border-color: rgba(255,255,255,0.3);
-        }
-        .shape-btn.active span { opacity: 1; color: white; }
+        .shape-btn:hover { background: rgba(255,255,255,0.12); transform: scale(1.02); }
+        .shape-btn.active { background: var(--accent); box-shadow: 0 4px 12px rgba(10,132,255,0.3); }
+        .shape-btn span { font-size: 9px; margin-top: 5px; opacity: 0.8; }
+        .shape-icon { font-size: 18px; }
 
-        /* iOS 风格滑块 */
-        .control-group { margin-bottom: 16px; }
-        .control-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
-        .control-val { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-        
+        /* Sliders */
+        .control-group { margin-bottom: 12px; }
+        .control-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
         input[type=range] {
-            -webkit-appearance: none; width: 100%; background: transparent;
+            -webkit-appearance: none; width: 100%; background: transparent; margin: 0;
         }
-        input[type=range]:focus { outline: none; }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px; cursor: pointer;
-            background: rgba(255,255,255,0.2); border-radius: 2px;
+            width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px;
         }
         input[type=range]::-webkit-slider-thumb {
-            height: 18px; width: 18px; border-radius: 50%;
-            background: #ffffff; cursor: pointer;
-            -webkit-appearance: none; margin-top: -7px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            height: 16px; width: 16px; border-radius: 50%; background: white;
+            -webkit-appearance: none; margin-top: -6px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             transition: transform 0.1s;
         }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
 
-        /* ================= 底部：灵动岛播放器 (Dynamic Player) ================= */
+        /* ================= 底部：播放栏 ================= */
         #player-bar {
-            position: absolute;
-            bottom: 30px; left: 50%;
-            transform: translateX(-50%);
-            width: 500px;
-            height: 70px;
-            z-index: 100;
-            padding: 0 25px;
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 460px; height: 64px; z-index: 100; padding: 0 20px;
             display: flex; align-items: center; justify-content: space-between;
-            border-radius: 35px; /* Pill shape */
+            border-radius: 32px;
         }
+        .player-left { display: flex; align-items: center; gap: 12px; }
+        .art-box {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: linear-gradient(135deg, #fc5c7d, #6a82fb);
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .meta { display: flex; flex-direction: column; }
+        .song-title { font-size: 14px; font-weight: 600; }
+        .song-dna { font-size: 10px; color: var(--accent); font-family: monospace; margin-top: 2px;}
         
-        .player-info { display: flex; align-items: center; gap: 15px; }
-        .album-art-placeholder {
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, var(--accent), #d568ff);
-            border-radius: 10px;
+        .controls { display: flex; align-items: center; gap: 15px; }
+        .c-btn { background: none; border: none; color: white; cursor: pointer; padding: 0; transition: 0.2s; }
+        .c-btn:hover { color: var(--accent); transform: scale(1.1); }
+        .play-btn { 
+            width: 32px; height: 32px; background: white; color: black; border-radius: 50%; 
             display: flex; align-items: center; justify-content: center;
-            font-size: 18px;
         }
-        
-        .song-meta { display: flex; flex-direction: column; }
-        .now-title { font-size: 15px; font-weight: 600; }
-        .now-dna { 
-            font-size: 10px; color: var(--accent); 
-            font-family: "SF Mono", monospace; letter-spacing: 0.5px; margin-top: 2px;
-        }
+        .play-btn:hover { background: #eee; color: black; }
 
-        .controls { display: flex; gap: 15px; align-items: center; }
-        
-        /* 频谱条 */
-        #visualizer-bars {
-            display: flex; gap: 3px; height: 20px; align-items: center;
-        }
-        .v-bar { width: 3px; background: white; border-radius: 2px; animation: bounce 1s infinite ease-in-out; }
-        @keyframes bounce { 0%, 100% { height: 4px; opacity: 0.5; } 50% { height: 16px; opacity: 1; } }
-
-        /* 输入框隐藏 */
-        #file-input { display: none; }
-
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- 1. 3D 画布 -->
     <div id="canvas-container"></div>
 
-    <!-- 2. 左侧音乐库 -->
+    <!-- 左侧：音乐库 -->
     <div id="library-panel" class="glass-panel">
-        <div class="panel-header">
-            <div class="panel-title">Library</div>
-            <label for="file-input" id="add-music-btn">Add Music +</label>
-            <input type="file" id="file-input" multiple accept="audio/*">
-        </div>
+        <div class="panel-title">Library</div>
+        <label for="file-input" class="btn-upload">Upload Local MP3</label>
+        <input type="file" id="file-input" multiple accept="audio/*">
+        
         <ul id="playlist">
-            <li class="track-item" style="cursor:default; opacity:0.6; justify-content:center;">
-                <span class="track-name">No music loaded</span>
-            </li>
+            <!-- JS 将在此填充 -->
         </ul>
     </div>
 
-    <!-- 3. 右侧控制中心 -->
+    <!-- 右上：番茄钟 -->
+    <div id="pomo-widget" class="glass-panel">
+        <div class="pomo-ring-container">
+            <svg class="pomo-svg">
+                <circle class="pomo-circle-bg" cx="35" cy="35" r="28"></circle>
+                <circle class="pomo-circle-fg" id="timer-ring" cx="35" cy="35" r="28"></circle>
+            </svg>
+        </div>
+        <div class="pomo-controls">
+            <div class="pomo-label" id="timer-mode">Focus Time</div>
+            <div class="pomo-time" id="timer-display">25:00</div>
+            <div class="pomo-btn-row" style="margin-top:8px;">
+                <button class="btn-pomo btn-start" id="btn-timer-toggle" onclick="toggleTimer()">Start</button>
+                <button class="btn-pomo btn-reset" onclick="resetTimer()">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右下：设置 -->
     <div id="settings-panel" class="glass-panel">
-        <div class="panel-title" style="margin-bottom:20px;">Control Center</div>
-        
-        <div class="section-title">Geometry</div>
-        <div class="shape-grid" id="shape-grid">
-            <!-- JS 将自动生成按钮 -->
-        </div>
+        <div class="section-header">Geometry</div>
+        <div class="shape-grid" id="shape-grid"></div>
 
-        <div class="section-title">Visuals</div>
+        <div class="section-header">Effects</div>
         <div class="control-group">
-            <div class="control-label">Fractal Noise <span class="control-val" id="val-noise">0.5</span></div>
-            <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="updateParam('noise', this.value)">
+            <div class="control-header"><span>Explosion</span><span id="val-exp">0.5</span></div>
+            <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="setParam('explode', this.value)">
         </div>
         <div class="control-group">
-            <div class="control-label">Particle Size <span class="control-val" id="val-size">2.0</span></div>
-            <input type="range" min="0.5" max="5" step="0.1" value="2.0" oninput="updateParam('size', this.value)">
-        </div>
-
-        <div class="section-title">Audio Response</div>
-        <div class="control-group">
-            <div class="control-label">Beat Pulse <span class="control-val" id="val-pulse">1.5</span></div>
-            <input type="range" min="0" max="3" step="0.1" value="1.5" oninput="updateParam('pulse', this.value)">
+            <div class="control-header"><span>Beat Pulse</span><span id="val-pulse">1.5</span></div>
+            <input type="range" min="0" max="3" step="0.1" value="1.5" oninput="setParam('pulse', this.value)">
         </div>
         <div class="control-group">
-            <div class="control-label">Explosion <span class="control-val" id="val-exp">0.5</span></div>
-            <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="updateParam('explode', this.value)">
+            <div class="control-header"><span>Speed</span><span id="val-speed">0.5</span></div>
+            <input type="range" min="0" max="2" step="0.1" value="0.5" oninput="setParam('speed', this.value)">
         </div>
     </div>
 
-    <!-- 4. 底部播放器 -->
+    <!-- 底部：播放器 -->
     <div id="player-bar" class="glass-panel">
-        <div class="player-info">
-            <div class="album-art-placeholder">🎵</div>
-            <div class="song-meta">
-                <div class="now-title" id="song-title">Select a song</div>
-                <div class="now-dna" id="dna-code">DNA: WAITING</div>
+        <div class="player-left">
+            <div class="art-box">🎵</div>
+            <div class="meta">
+                <div class="song-title" id="now-title">Ready to Play</div>
+                <div class="song-dna" id="now-dna">DNA: NULL</div>
             </div>
         </div>
-        
         <div class="controls">
-            <div id="visualizer-bars">
-                <div class="v-bar" style="animation-delay:0s"></div>
-                <div class="v-bar" style="animation-delay:0.1s"></div>
-                <div class="v-bar" style="animation-delay:0.2s"></div>
-                <div class="v-bar" style="animation-delay:0.3s"></div>
-            </div>
-            
-            <button class="icon-btn" onclick="prevSong()">
-                <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            <button class="c-btn" onclick="prevSong()"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+            <button class="c-btn play-btn" onclick="togglePlay()" id="play-btn-ui">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
-            <button class="icon-btn" onclick="togglePlay()" style="background:white; color:black;">
-                <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> <!-- Play -->
-            </button>
-            <button class="icon-btn" onclick="nextSong()">
-                <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-            </button>
+            <button class="c-btn" onclick="nextSong()"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
         </div>
     </div>
 
-    <!-- JS Core -->
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        // ================= 1. 核心状态 =================
-        const CONFIG = {
-            count: 35000,
-            params: { noise: 0.5, size: 2.0, pulse: 1.5, explode: 0.5, speed: 1.0 }
-        };
-
-        const STATE = {
-            playlist: [],
-            currIdx: -1,
-            isPlaying: false,
-            audioCtx: null, analyser: null, source: null,
-            dnaSeed: 0
-        };
+        // ================= 1. 预存音乐与数据 =================
+        const PRELOADED_TRACKS = [
+            { name: "Cyberpunk City", url: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3", type: "preset" },
+            { name: "Ethereal Piano", url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3", type: "preset" },
+            { name: "Deep Focus Bass", url: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3", type: "preset" }
+        ];
 
         const SHAPES = [
-            { id: 'dna', name: 'DNA Helix', icon: '🧬' },
             { id: 'galaxy', name: 'Galaxy', icon: '🌌' },
+            { id: 'dna', name: 'DNA', icon: '🧬' },
             { id: 'sphere', name: 'Sphere', icon: '🔮' },
             { id: 'heart', name: 'Heart', icon: '❤️' },
             { id: 'torus', name: 'Mobius', icon: '♾️' },
-            { id: 'cube', name: 'Cube', icon: '🧊' },
-            { id: 'lorenz', name: 'Chaos', icon: '🦋' },
-            { id: 'pyramid', name: 'Fractal', icon: '🔺' },
-            { id: 'grid', name: 'Matrix', icon: '🕸️' }
+            { id: 'lorenz', name: 'Chaos', icon: '🦋' }
         ];
 
-        let scene, camera, renderer, particles, material, geometry, clock, controls;
+        const CONFIG = {
+            count: 30000,
+            explode: 0.5,
+            pulse: 1.5,
+            speed: 0.5
+        };
 
-        // ================= 2. Three.js 初始化 =================
+        const STATE = {
+            playlist: [...PRELOADED_TRACKS],
+            currIdx: -1,
+            isPlaying: false,
+            audioCtx: null, analyser: null, source: null,
+            dnaSeed: 12345
+        };
+
+        // ================= 2. Three.js Core =================
+        let scene, camera, renderer, particles, material, geometry, controls, clock;
+
         function init() {
             const container = document.getElementById('canvas-container');
             clock = new THREE.Clock();
-
+            
             scene = new THREE.Scene();
-            // 深空渐变背景模拟
-            scene.fog = new THREE.FogExp2(0x050505, 0.002);
-
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 4000);
-            camera.position.set(0, 50, 450);
+            scene.fog = new THREE.FogExp2(0x000000, 0.002);
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 3000);
+            camera.position.set(0, 50, 400);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            // 默认黑色，后续可随音乐变色
-            renderer.setClearColor(0x050505);
+            renderer.setClearColor(0x000000);
             container.appendChild(renderer.domElement);
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
             controls.autoRotate = true;
-            controls.autoRotateSpeed = 0.5;
+            controls.autoRotateSpeed = CONFIG.speed;
 
             initParticles();
             initUI();
+            renderPlaylist();
             
             window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.aspect = window.innerWidth/window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
@@ -370,7 +317,7 @@
             animate();
         }
 
-        // ================= 3. 粒子系统 (Shader) =================
+        // ================= 3. 粒子系统 =================
         function initParticles() {
             geometry = new THREE.BufferGeometry();
             const pos = new Float32Array(CONFIG.count * 3);
@@ -378,18 +325,18 @@
             const colors = new Float32Array(CONFIG.count * 3);
             const randoms = new Float32Array(CONFIG.count);
 
-            // 初始形状：球体
-            const shape = getShapeData('sphere', 0);
+            const shape = getShapeData('galaxy', 0);
+
             for(let i=0; i<CONFIG.count; i++) {
                 pos[i*3]=shape[i*3]; pos[i*3+1]=shape[i*3+1]; pos[i*3+2]=shape[i*3+2];
                 target[i*3]=pos[i*3]; target[i*3+1]=pos[i*3+1]; target[i*3+2]=pos[i*3+2];
                 randoms[i] = Math.random();
                 
-                // 默认优雅蓝紫渐变
+                // 蓝紫渐变
                 const r = Math.random();
-                colors[i*3] = 0.1 + 0.5*r;     // R
-                colors[i*3+1] = 0.5 + 0.5*r;   // G
-                colors[i*3+2] = 1.0;           // B
+                colors[i*3] = 0.1 + r*0.4;
+                colors[i*3+1] = 0.4 + r*0.4;
+                colors[i*3+2] = 1.0;
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -401,70 +348,51 @@
                 uniform float uTime;
                 uniform float uMix;
                 uniform float uBeat;
-                uniform float uNoiseStr;
                 uniform float uExplode;
                 uniform float uPulse;
-                uniform float uSize;
-
+                
                 attribute vec3 targetPosition;
                 attribute vec3 color;
                 attribute float aRandom;
-
                 varying vec3 vColor;
                 varying float vAlpha;
 
-                // 噪声函数
-                vec3 hash33(vec3 p3) {
-                    p3 = fract(p3 * vec3(.1031, .1030, .0973));
-                    p3 += dot(p3, p3.yxz+33.33);
-                    return fract((p3.xxy + p3.yxx)*p3.zyx);
-                }
-                float noise(vec3 x) { return hash33(x).x; } // 简化版
-
                 void main() {
                     vColor = color;
-                    
-                    // 变形插值
                     vec3 pos = mix(position, targetPosition, uMix);
                     
-                    // 动态噪点 (Ethereal flow)
-                    float n = sin(pos.x*0.02 + uTime) * cos(pos.y*0.02 + uTime);
-                    vec3 noiseVec = normalize(pos) * n * (uNoiseStr * 30.0);
+                    // 噪声漂浮
+                    float n = sin(pos.x*0.01 + uTime) * cos(pos.z*0.01 + uTime);
+                    pos += normalize(pos) * n * 20.0;
                     
                     // 音乐炸裂
-                    vec3 explodeVec = normalize(pos) * (uBeat * uExplode * 80.0);
-                    
-                    vec3 finalPos = pos + noiseVec + explodeVec;
-                    vec4 mvPos = modelViewMatrix * vec4(finalPos, 1.0);
+                    pos += normalize(pos) * (uBeat * uExplode * 60.0);
+
+                    vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
                     gl_Position = projectionMatrix * mvPos;
 
-                    // 呼吸脉冲
-                    float pulse = 1.0 + (uBeat * uPulse);
-                    gl_PointSize = uSize * pulse * (300.0 / -mvPos.z);
-                    
-                    // 柔和边缘
-                    vAlpha = smoothstep(1200.0, 100.0, -mvPos.z);
+                    // 呼吸大小
+                    gl_PointSize = 2.5 * (1.0 + uBeat * uPulse) * (300.0 / -mvPos.z);
+                    vAlpha = smoothstep(1000.0, 100.0, -mvPos.z);
                 }
             `;
 
             const fShader = `
-                uniform float uBeat;
                 varying vec3 vColor;
                 varying float vAlpha;
+                uniform float uBeat;
 
                 void main() {
                     vec2 uv = gl_PointCoord.xy - 0.5;
-                    float dist = length(uv);
-                    if (dist > 0.5) discard;
-
-                    // 高级光晕 (Apple style glow)
-                    float glow = 1.0 - dist * 2.0;
-                    glow = pow(glow, 2.5);
-
-                    // 节拍高亮
-                    vec3 finalColor = mix(vColor, vec3(1.0), uBeat * 0.3);
-
-                    gl_FragColor = vec4(finalColor, vAlpha * glow);
+                    float d = length(uv);
+                    if (d > 0.5) discard;
+                    
+                    float glow = 1.0 - d * 2.0;
+                    glow = pow(glow, 2.0);
+                    
+                    // 高亮
+                    vec3 c = mix(vColor, vec3(1.0), uBeat * 0.4);
+                    gl_FragColor = vec4(c, vAlpha * glow);
                 }
             `;
 
@@ -473,10 +401,8 @@
                     uTime: { value: 0 },
                     uMix: { value: 0 },
                     uBeat: { value: 0 },
-                    uNoiseStr: { value: CONFIG.params.noise },
-                    uExplode: { value: CONFIG.params.explode },
-                    uPulse: { value: CONFIG.params.pulse },
-                    uSize: { value: CONFIG.params.size }
+                    uExplode: { value: CONFIG.explode },
+                    uPulse: { value: CONFIG.pulse }
                 },
                 vertexShader: vShader, fragmentShader: fShader,
                 transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
@@ -486,84 +412,35 @@
             scene.add(particles);
         }
 
-        // ================= 4. UI 逻辑与交互 =================
-        function initUI() {
-            // 生成形状网格按钮
-            const grid = document.getElementById('shape-grid');
-            SHAPES.forEach((s, idx) => {
-                const btn = document.createElement('div');
-                btn.className = `shape-btn ${idx===0?'active':''}`;
-                btn.innerHTML = `${s.icon}<span>${s.name}</span>`;
-                btn.onclick = () => {
-                    document.querySelectorAll('.shape-btn').forEach(b=>b.classList.remove('active'));
-                    btn.classList.add('active');
-                    morphTo(s.id);
-                };
-                grid.appendChild(btn);
-            });
-        }
-
-        window.updateParam = function(key, val) {
-            val = parseFloat(val);
-            document.getElementById(`val-${key}`).innerText = val;
-            CONFIG.params[key] = val;
-            
-            // Map to uniforms
-            if(key === 'noise') material.uniforms.uNoiseStr.value = val;
-            if(key === 'size') material.uniforms.uSize.value = val;
-            if(key === 'pulse') material.uniforms.uPulse.value = val;
-            if(key === 'explode') material.uniforms.uExplode.value = val;
-        }
-
-        // ================= 5. 几何算法 =================
+        // ================= 4. 几何算法 =================
         function getShapeData(type, seed) {
             const arr = new Float32Array(CONFIG.count * 3);
             let idx = 0;
-            const rng = (s) => Math.sin(s++) * 10000 - Math.floor(Math.sin(s++) * 10000);
-            
+            const rng = s => Math.sin(s++)*10000 - Math.floor(Math.sin(s++)*10000);
+
             for(let i=0; i<CONFIG.count; i++) {
-                let x,y,z;
-                const u = Math.random() * Math.PI * 2;
-                const v = Math.random() * Math.PI;
-                
-                if (type === 'dna') {
-                    const r = 60;
-                    x = Math.cos(u*4) * r;
-                    z = Math.sin(u*4) * r;
-                    y = (u - Math.PI*4) * 30;
-                    if(i%2==0) { x+=20; } // split strands
-                } 
-                else if (type === 'galaxy') {
-                    const angle = Math.random() * Math.PI * 2;
-                    const r = Math.random() * 200;
-                    x = Math.cos(angle + r*0.05) * r;
-                    y = (Math.random()-0.5) * 20;
-                    z = Math.sin(angle + r*0.05) * r;
+                let x,y,z, u = Math.random()*Math.PI*2, v = Math.random()*Math.PI;
+                const r = 150;
+
+                if (type === 'galaxy') {
+                    const ang = Math.random()*Math.PI*2, rad = Math.random()*200;
+                    x = Math.cos(ang + rad*0.05)*rad;
+                    y = (Math.random()-0.5)*20;
+                    z = Math.sin(ang + rad*0.05)*rad;
+                } else if (type === 'dna') {
+                     x = Math.cos(u*5)*60; z = Math.sin(u*5)*60; y = (u-Math.PI*5)*20;
+                     if(i%2==0) x+=20;
+                } else if (type === 'heart') {
+                    x = (Math.random()-0.5)*300; y=(Math.random()-0.5)*300; z=(Math.random()-0.5)*300;
+                    // simplified approximation box for demo speed
+                    if(Math.abs(x)+Math.abs(y)+Math.abs(z) > 200) { x/=2;y/=2;z/=2; } 
+                } else if (type === 'lorenz') {
+                    x = r*Math.sin(v)*Math.cos(u); y=r*Math.sin(v)*Math.sin(u); z=r*Math.cos(v);
+                    x *= 0.8; y*=0.8; 
+                } else { // Sphere / Torus fallback
+                    x = r*Math.sin(v)*Math.cos(u); y=r*Math.sin(v)*Math.sin(u); z=r*Math.cos(v);
+                    if(type==='torus') { x = (100+40*Math.cos(v))*Math.cos(u); z=(100+40*Math.cos(v))*Math.sin(u); y=40*Math.sin(v); }
                 }
-                else if (type === 'heart') {
-                    x = (Math.random()-0.5)*300; z = (Math.random()-0.5)*300; y = (Math.random()-0.5)*300;
-                    // Filter
-                    // Simplified box for fallback
-                }
-                else if (type === 'lorenz') {
-                    // Pre-calc lorenz logic needed, keeping it simple sphere for demo brevity
-                    // or implement actual lorenz loop (omitted to save length, using Sphere fallback)
-                     const r = 150;
-                    x = r * Math.sin(v) * Math.cos(u);
-                    y = r * Math.sin(v) * Math.sin(u);
-                    z = r * Math.cos(v);
-                }
-                else { // Default Sphere / Sphere-like
-                    const r = 150;
-                    x = r * Math.sin(v) * Math.cos(u);
-                    y = r * Math.sin(v) * Math.sin(u);
-                    z = r * Math.cos(v);
-                    
-                    if(type === 'cube') {
-                        x = (Math.random()-0.5)*300; y=(Math.random()-0.5)*300; z=(Math.random()-0.5)*300;
-                    }
-                }
-                
                 arr[idx++] = x; arr[idx++] = y; arr[idx++] = z;
             }
             return arr;
@@ -571,47 +448,109 @@
 
         function morphTo(type) {
             const newPos = getShapeData(type, STATE.dnaSeed);
-            // 将当前的 visual state (target) 设为 position (start)
             geometry.attributes.position.array.set(geometry.attributes.targetPosition.array);
             geometry.attributes.position.needsUpdate = true;
-            
-            // 设置新目标
             geometry.attributes.targetPosition.array.set(newPos);
             geometry.attributes.targetPosition.needsUpdate = true;
             
-            // 动画
             material.uniforms.uMix.value = 0;
             const start = clock.getElapsedTime();
             const anim = () => {
                 const now = clock.getElapsedTime();
-                const p = Math.min((now - start) / 2.0, 1.0);
-                const ease = 1 - Math.pow(1 - p, 4); // Quartic ease out
-                material.uniforms.uMix.value = ease;
-                if(p < 1) requestAnimationFrame(anim);
+                const p = Math.min((now-start)/2, 1);
+                material.uniforms.uMix.value = 1 - Math.pow(1-p, 3);
+                if(p<1) requestAnimationFrame(anim);
             };
             anim();
         }
 
+        // ================= 5. 番茄钟逻辑 =================
+        let timerInt = null;
+        let timerTime = 25 * 60;
+        let timerMode = 'work'; // work | rest
+        const TIMER_WORK = 25 * 60;
+        const TIMER_REST = 5 * 60;
 
-        // ================= 6. 音频处理 =================
-        document.getElementById('file-input').onchange = (e) => {
-            const files = Array.from(e.target.files);
-            STATE.playlist.push(...files);
-            renderPlaylist();
-            if(!STATE.isPlaying) playSong(STATE.playlist.length - files.length);
-        };
+        function updateTimerUI() {
+            const m = Math.floor(timerTime / 60).toString().padStart(2, '0');
+            const s = (timerTime % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+            
+            // SVG Circle Progress
+            const total = timerMode === 'work' ? TIMER_WORK : TIMER_REST;
+            const pct = 1 - (timerTime / total);
+            const dash = 176; // 2 * PI * 28
+            document.getElementById('timer-ring').style.strokeDashoffset = dash * pct;
+        }
 
+        function toggleTimer() {
+            const btn = document.getElementById('btn-timer-toggle');
+            if (timerInt) {
+                // Pause
+                clearInterval(timerInt);
+                timerInt = null;
+                btn.innerText = 'Start';
+            } else {
+                // Start
+                btn.innerText = 'Pause';
+                timerInt = setInterval(() => {
+                    timerTime--;
+                    if (timerTime <= 0) {
+                        // Switch Mode
+                        timerMode = timerMode === 'work' ? 'rest' : 'work';
+                        timerTime = timerMode === 'work' ? TIMER_WORK : TIMER_REST;
+                        
+                        // UI Feedback
+                        document.getElementById('timer-mode').innerText = timerMode === 'work' ? 'Focus Time' : 'Take a Break';
+                        document.documentElement.style.setProperty('--accent', timerMode === 'work' ? '#0a84ff' : '#30d158');
+                        document.getElementById('timer-ring').style.stroke = timerMode === 'work' ? '#0a84ff' : '#30d158';
+                        
+                        // Play notification sound? (Optional)
+                        alert(timerMode === 'work' ? "Time to Focus!" : "Take a break!");
+                        toggleTimer(); // Pause automatically at switch
+                    }
+                    updateTimerUI();
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInt);
+            timerInt = null;
+            document.getElementById('btn-timer-toggle').innerText = 'Start';
+            timerTime = TIMER_WORK;
+            timerMode = 'work';
+            document.getElementById('timer-mode').innerText = 'Focus Time';
+            document.documentElement.style.setProperty('--accent', '#0a84ff');
+            document.getElementById('timer-ring').style.stroke = '#0a84ff';
+            updateTimerUI();
+        }
+
+
+        // ================= 6. 音频与交互 =================
         function renderPlaylist() {
             const ul = document.getElementById('playlist');
             ul.innerHTML = '';
-            STATE.playlist.forEach((f, i) => {
+            
+            // Separation Header for Preloaded
+            const h1 = document.createElement('div');
+            h1.className = 'section-header'; h1.innerText = 'PRE-LOADED';
+            ul.appendChild(h1);
+
+            STATE.playlist.forEach((track, i) => {
+                if (i === PRELOADED_TRACKS.length) {
+                    const h2 = document.createElement('div');
+                    h2.className = 'section-header'; h2.innerText = 'LOCAL FILES';
+                    ul.appendChild(h2);
+                }
+
                 const li = document.createElement('li');
-                li.className = `track-item ${i===STATE.currIdx ? 'active' : ''}`;
+                li.className = `track-item ${i===STATE.currIdx?'active':''}`;
                 li.innerHTML = `
-                    <div class="track-icon">${i+1}</div>
-                    <div class="track-info">
-                        <div class="track-name">${f.name.replace(/\.[^/.]+$/, "")}</div>
-                        <div class="track-sub">Local File</div>
+                    <div class="t-icon">${track.type==='preset'?'💿':'📂'}</div>
+                    <div class="t-info">
+                        <div class="t-name">${track.name.replace(/\.[^/.]+$/, "")}</div>
+                        <div class="t-meta">${track.type==='preset'?'Built-in':'User Upload'}</div>
                     </div>
                 `;
                 li.onclick = () => playSong(i);
@@ -619,88 +558,106 @@
             });
         }
 
+        // 文件上传处理
+        document.getElementById('file-input').onchange = (e) => {
+            const files = Array.from(e.target.files);
+            STATE.playlist.push(...files); // files are File objects
+            renderPlaylist();
+        };
+
         function playSong(idx) {
-            if(idx < 0 || idx >= STATE.playlist.length) return;
             STATE.currIdx = idx;
             renderPlaylist();
+            const track = STATE.playlist[idx];
             
-            const file = STATE.playlist[idx];
-            document.getElementById('song-title').innerText = file.name.replace(/\.[^/.]+$/, "");
+            document.getElementById('now-title').innerText = track.name.replace(/\.[^/.]+$/, "");
             
-            // Generate DNA
-            let hash = 0; for(let i=0;i<file.name.length;i++) hash = ((hash<<5)-hash)+file.name.charCodeAt(i);
+            // DNA
+            let hash=0; const s = track.name;
+            for(let i=0; i<s.length; i++) hash = ((hash<<5)-hash)+s.charCodeAt(i);
             STATE.dnaSeed = Math.abs(hash);
-            document.getElementById('dna-code').innerText = `DNA: ${STATE.dnaSeed.toString(16).toUpperCase()}`;
-
-            // Trigger Morph based on DNA? Optional. 
-            // morphTo('dna'); // Auto switch to DNA shape
+            document.getElementById('now-dna').innerText = "DNA: "+STATE.dnaSeed.toString(16).toUpperCase();
 
             if(!STATE.audioCtx) STATE.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const reader = new FileReader();
-            reader.onload = e => {
-                if(STATE.source) STATE.source.stop();
-                STATE.audioCtx.decodeAudioData(e.target.result, buffer => {
-                    STATE.source = STATE.audioCtx.createBufferSource();
-                    STATE.source.buffer = buffer;
-                    STATE.analyser = STATE.audioCtx.createAnalyser();
-                    STATE.analyser.fftSize = 512;
-                    STATE.source.connect(STATE.analyser);
-                    STATE.analyser.connect(STATE.audioCtx.destination);
-                    STATE.source.start(0);
-                    STATE.isPlaying = true;
-                    updatePlayIcon();
-                    STATE.source.onended = () => nextSong();
-                });
+            if(STATE.audioCtx.state === 'suspended') STATE.audioCtx.resume();
+            if(STATE.source) STATE.source.stop();
+
+            const playBuffer = (buffer) => {
+                STATE.source = STATE.audioCtx.createBufferSource();
+                STATE.source.buffer = buffer;
+                if(!STATE.analyser) { STATE.analyser = STATE.audioCtx.createAnalyser(); STATE.analyser.fftSize=512; }
+                STATE.source.connect(STATE.analyser);
+                STATE.analyser.connect(STATE.audioCtx.destination);
+                STATE.source.start(0);
+                STATE.isPlaying = true;
+                updatePlayBtn();
+                STATE.source.onended = () => nextSong();
             };
-            reader.readAsArrayBuffer(file);
+
+            if (track.type === 'preset') {
+                // Fetch URL
+                fetch(track.url)
+                    .then(res => res.arrayBuffer())
+                    .then(buf => STATE.audioCtx.decodeAudioData(buf))
+                    .then(playBuffer);
+            } else {
+                // Read File
+                const reader = new FileReader();
+                reader.onload = e => STATE.audioCtx.decodeAudioData(e.target.result).then(playBuffer);
+                reader.readAsArrayBuffer(track);
+            }
         }
 
         window.togglePlay = function() {
-            if(STATE.audioCtx && STATE.audioCtx.state === 'running') {
-                STATE.audioCtx.suspend();
-                STATE.isPlaying = false;
-            } else if(STATE.audioCtx && STATE.audioCtx.state === 'suspended') {
-                STATE.audioCtx.resume();
-                STATE.isPlaying = true;
+            if(STATE.audioCtx) {
+                if(STATE.audioCtx.state === 'running') { STATE.audioCtx.suspend(); STATE.isPlaying=false; }
+                else { STATE.audioCtx.resume(); STATE.isPlaying=true; }
+                updatePlayBtn();
             }
-            updatePlayIcon();
+        };
+
+        function updatePlayBtn() {
+            const btn = document.getElementById('play-btn-ui');
+            btn.innerHTML = STATE.isPlaying ? 
+                `<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : 
+                `<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+        }
+        window.nextSong = () => playSong((STATE.currIdx + 1) % STATE.playlist.length);
+        window.prevSong = () => playSong((STATE.currIdx - 1 + STATE.playlist.length) % STATE.playlist.length);
+
+        window.setParam = (k, v) => {
+            document.getElementById(`val-${k}`).innerText = v;
+            CONFIG[k] = parseFloat(v);
+            if(k==='speed') controls.autoRotateSpeed = CONFIG.speed;
+            else if(material) {
+                if(k==='explode') material.uniforms.uExplode.value = CONFIG.explode;
+                if(k==='pulse') material.uniforms.uPulse.value = CONFIG.pulse;
+            }
+        };
+
+        function initUI() {
+            const grid = document.getElementById('shape-grid');
+            SHAPES.forEach((s,i) => {
+                const b = document.createElement('div'); b.className = `shape-btn ${i===0?'active':''}`;
+                b.innerHTML = `<div class="shape-icon">${s.icon}</div><span>${s.name}</span>`;
+                b.onclick = () => {
+                    document.querySelectorAll('.shape-btn').forEach(x=>x.classList.remove('active'));
+                    b.classList.add('active'); morphTo(s.id);
+                };
+                grid.appendChild(b);
+            });
         }
 
-        function updatePlayIcon() {
-            const svg = document.getElementById('play-icon');
-            if(STATE.isPlaying) svg.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'; // Pause
-            else svg.innerHTML = '<path d="M8 5v14l11-7z"/>'; // Play
-        }
-
-        window.nextSong = () => playSong(STATE.currIdx + 1);
-        window.prevSong = () => playSong(STATE.currIdx - 1);
-
-
-        // ================= 7. 动画循环 =================
         function animate() {
             requestAnimationFrame(animate);
             material.uniforms.uTime.value = clock.getElapsedTime();
-
             if(STATE.isPlaying && STATE.analyser) {
                 const data = new Uint8Array(STATE.analyser.frequencyBinCount);
                 STATE.analyser.getByteFrequencyData(data);
-                
-                // Bass focus
-                let sum = 0;
-                for(let i=0; i<50; i++) sum += data[i];
-                const avg = sum / 50 / 255;
-                
-                // 平滑过渡
-                material.uniforms.uBeat.value += (avg - material.uniforms.uBeat.value) * 0.4;
-                
-                // Visualizer bars in UI
-                const bars = document.querySelectorAll('.v-bar');
-                bars.forEach((b, i) => {
-                    const h = data[i*10] / 255 * 20;
-                    b.style.height = Math.max(4, h) + 'px';
-                });
+                let sum=0; for(let i=0;i<50;i++) sum+=data[i];
+                const avg = sum/50/255;
+                material.uniforms.uBeat.value += (avg - material.uniforms.uBeat.value)*0.3;
             }
-
             controls.update();
             renderer.render(scene, camera);
         }
